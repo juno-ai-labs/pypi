@@ -29,6 +29,65 @@ def get_container_dirs(packages_dir):
     return sorted(container_dirs)
 
 
+def add_copy_button_to_index(index_html_path, container_name):
+    """Add a copy button with pip install command to the index.html."""
+    with open(index_html_path, 'r') as f:
+        content = f.read()
+    
+    # Create the pip install command banner
+    pip_command = f"pip install --index-url https://pypi.juno-labs.com/{container_name}/ your-package"
+    
+    copy_button_html = f"""
+    <div style="background-color: #f0f8ff; border: 1px solid #b0d4f1; padding: 15px; margin: 20px 0; border-radius: 4px;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="flex-grow: 1;">
+                <strong style="display: block; margin-bottom: 8px; color: #333;">Install packages from this index:</strong>
+                <code id="pip-command" style="background-color: #fff; padding: 8px 12px; border: 1px solid #ddd; border-radius: 3px; display: inline-block; font-family: 'Courier New', monospace; font-size: 13px; color: #333;">{pip_command}</code>
+            </div>
+            <button onclick="copyToClipboard(event)" style="margin-left: 15px; padding: 8px 16px; background-color: #0066cc; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 6px; white-space: nowrap;" onmouseover="this.style.backgroundColor='#0052a3'" onmouseout="this.style.backgroundColor='#0066cc'">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: inline-block;">
+                    <path d="M11 1H3C2.44772 1 2 1.44772 2 2V11C2 11.5523 2.44772 12 3 12H11C11.5523 12 12 11.5523 12 11V2C12 1.44772 11.5523 1 11 1Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M14 5V14C14 14.5523 13.5523 15 13 15H5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Copy
+            </button>
+        </div>
+    </div>
+    <script>
+    function copyToClipboard(event) {{
+        const text = document.getElementById('pip-command').textContent;
+        navigator.clipboard.writeText(text).then(function() {{
+            const btn = event.target.closest('button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: inline-block;"><path d="M13 4L6 11L3 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Copied!';
+            btn.style.backgroundColor = '#28a745';
+            setTimeout(function() {{
+                btn.innerHTML = originalText;
+                btn.style.backgroundColor = '#0066cc';
+            }}, 2000);
+        }}, function(err) {{
+            console.error('Could not copy text: ', err);
+        }});
+    }}
+    </script>
+    """
+    
+    # Find the container div and insert after the header
+    # Look for the pattern: <div class="container width">
+    container_pattern = '<div class="container width">'
+    insertion_point = content.find(container_pattern)
+    
+    if insertion_point != -1:
+        # Find the end of the opening container div tag and any immediate child
+        insertion_point = content.find('>', insertion_point) + 1
+        # Insert the copy button HTML
+        content = content[:insertion_point] + copy_button_html + content[insertion_point:]
+        
+        # Write back the modified content
+        with open(index_html_path, 'w') as f:
+            f.write(content)
+
+
 def build_index_for_container(container_name, base_url, output_dir):
     """Build PyPI index for a specific container directory."""
     packages_dir = Path('packages') / container_name
@@ -51,12 +110,14 @@ def build_index_for_container(container_name, base_url, output_dir):
     
     # Load info.yaml if it exists
     info_file = packages_dir / 'info.yaml'
+    info_data = {}
     title = container_name
     if info_file.exists():
         with open(info_file) as f:
-            info = yaml.safe_load(f)
-            if info and 'base_image' in info:
-                title = f"{container_name} ({info['base_image']})"
+            info_data = yaml.safe_load(f) or {}
+            # Use base_image as title if present, otherwise use directory name
+            if 'base_image' in info_data:
+                title = info_data['base_image']
     
     # Build the index using dumb-pypi
     packages_url = f"{base_url}/packages/{container_name}/"
@@ -75,13 +136,20 @@ def build_index_for_container(container_name, base_url, output_dir):
         print(result.stderr)
         sys.exit(1)
     
+    # Post-process the generated index.html to add copy button
+    index_html_path = output_path / 'index.html'
+    if index_html_path.exists():
+        add_copy_button_to_index(index_html_path, container_name)
+    
     # Clean up package list file
     package_list_file.unlink()
     
     return {
         'name': container_name,
         'title': title,
-        'package_count': len(packages)
+        'package_count': len(packages),
+        'base_image': info_data.get('base_image', ''),
+        'cuda_version': info_data.get('cuda_version', '')
     }
 
 
@@ -283,13 +351,28 @@ def create_root_index(containers_info, output_dir):
         container_name = info['name']
         title = info['title']
         package_count = info['package_count']
+        base_image = info.get('base_image', '')
+        cuda_version = info.get('cuda_version', '')
+        
+        # Build metadata display
+        metadata_parts = []
+        if base_image:
+            metadata_parts.append(f"Base Image: {base_image}")
+        if cuda_version:
+            metadata_parts.append(f"CUDA: {cuda_version}")
+        
+        metadata_display = " | ".join(metadata_parts) if metadata_parts else ""
         
         html_content += f"""            <a href="{container_name}/" class="package">
-                <strong>{container_name}</strong>
+                <strong>{title}</strong>
                 <span class="package-meta">{package_count} packages</span>
-                <br>
-                <span style="color: #666; font-size: 12px;">{title}</span>
-            </a>
+                <br>"""
+        
+        if metadata_display:
+            html_content += f"""                <span style="color: #666; font-size: 12px;">{metadata_display}</span>
+"""
+        
+        html_content += """            </a>
 """
     
     html_content += """        </div>
