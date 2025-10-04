@@ -46,7 +46,8 @@ jobs:
           dumb-pypi \
             --package-list package-list.txt \
             --packages-url https://raw.githubusercontent.com/${{ github.repository }}/main/packages/ \
-            --output-dir index
+            --output-dir index \
+            --title "Juno Labs Jetson PyPI"
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
