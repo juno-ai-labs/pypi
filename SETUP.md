@@ -39,11 +39,11 @@ If you have a package already built:
 git clone https://github.com/juno-ai-labs/pypi.git
 cd pypi
 
-# Copy your package
-cp /path/to/your/package.whl packages/
+# Copy your package to the appropriate container directory
+cp /path/to/your/package.whl packages/nvcr-io-nvidia-l4t-jetpack-r36-4-0/
 
 # Commit and push
-git add packages/your-package.whl
+git add packages/nvcr-io-nvidia-l4t-jetpack-r36-4-0/your-package.whl
 git commit -m "Add your-package"
 git push origin main
 ```
@@ -60,11 +60,11 @@ python setup.py sdist bdist_wheel
 git clone https://github.com/juno-ai-labs/pypi.git
 cd pypi
 
-# Copy the built package
-cp /path/to/your/project/dist/*.whl packages/
+# Copy the built package to the appropriate container directory
+cp /path/to/your/project/dist/*.whl packages/nvcr-io-nvidia-l4t-jetpack-r36-4-0/
 
 # Commit and push
-git add packages/*.whl
+git add packages/nvcr-io-nvidia-l4t-jetpack-r36-4-0/*.whl
 git commit -m "Add your-package"
 git push origin main
 ```
@@ -92,12 +92,14 @@ For this repository:
 https://juno-ai-labs.github.io/pypi/
 ```
 
+You can browse the root page to see all available container indexes, then use a container-specific URL to install packages.
+
 ## Step 6: Install Packages
 
-Test your private PyPI by installing a package:
+Test your private PyPI by installing a package from a container-specific index:
 
 ```bash
-pip install --index-url https://juno-ai-labs.github.io/pypi/ your-package
+pip install --index-url https://juno-ai-labs.github.io/pypi/nvcr-io-nvidia-l4t-jetpack-r36-4-0/ your-package
 ```
 
 ## Troubleshooting
@@ -127,7 +129,7 @@ pip install --index-url https://juno-ai-labs.github.io/pypi/ your-package
 
 **Solution**:
 1. Verify the file extension is `.whl`, `.tar.gz`, or `.zip`
-2. Check that the file is directly in the `packages/` directory (not in a subdirectory)
+2. Check that the file is in a container directory under `packages/` (e.g., `packages/nvcr-io-nvidia-l4t-jetpack-r36-4-0/`)
 3. Look at the workflow logs for any errors
 
 ### "Permission denied" when pushing to repository
@@ -143,47 +145,37 @@ pip install --index-url https://juno-ai-labs.github.io/pypi/ your-package
 
 ### Custom Package URL
 
-If you want to host packages elsewhere (e.g., S3), you can modify the workflow:
+If you want to host packages elsewhere (e.g., S3), you can modify the `build_nested_indexes.py` script or the workflow:
 
-Edit `.github/workflows/build-index.yml` and change the `--packages-url` parameter:
-
-```yaml
-- name: Build PyPI index
-  run: |
-    dumb-pypi \
-      --package-list package-list.txt \
-      --packages-url https://your-cdn.example.com/packages/ \
-      --output-dir index
-```
-
-### Custom Index Title
-
-Add `--title` to the dumb-pypi command:
+Edit `.github/workflows/build-index.yml` and change the base URL parameter:
 
 ```yaml
-- name: Build PyPI index
+- name: Build nested PyPI indexes
   run: |
-    dumb-pypi \
-      --package-list package-list.txt \
-      --packages-url https://raw.githubusercontent.com/${{ github.repository }}/main/packages/ \
-      --output-dir index \
-      --title "My Private PyPI"
+    python build_nested_indexes.py \
+      https://your-cdn.example.com \
+      index
 ```
 
-### Adding a Logo
+Note: The script will automatically append the container directory path to the base URL.
 
-Add `--logo` and `--logo-width` to the dumb-pypi command:
+### Customizing the Root Index
+
+You can customize the root index page by editing the `create_root_index()` function in `build_nested_indexes.py`. This includes:
+- Changing colors and styling in the CSS
+- Modifying the header text and descriptions
+- Adding custom footer links
+
+### Container Metadata
+
+Each container directory should contain an `info.yaml` file with metadata:
 
 ```yaml
-- name: Build PyPI index
-  run: |
-    dumb-pypi \
-      --package-list package-list.txt \
-      --packages-url https://raw.githubusercontent.com/${{ github.repository }}/main/packages/ \
-      --output-dir index \
-      --logo "https://example.com/logo.png" \
-      --logo-width 200
+base_image: ghcr.io/juno-ai-labs/l4t-jetpack:r36.4.0
+cuda_version: 12.6
 ```
+
+This information is used to display helpful details in the indexes.
 
 ## Security Considerations
 
