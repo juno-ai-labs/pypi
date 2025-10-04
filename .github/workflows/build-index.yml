@@ -29,25 +29,14 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Install dumb-pypi
-        run: pip install dumb-pypi
+      - name: Install dependencies
+        run: pip install dumb-pypi pyyaml
 
-      - name: Generate package list
+      - name: Build nested PyPI indexes
         run: |
-          cd packages
-          find . -type f \( -name "*.whl" -o -name "*.tar.gz" -o -name "*.zip" \) \
-            -printf "%f\n" | sort > ../package-list.txt
-          cd ..
-          echo "Package list contents:"
-          cat package-list.txt
-
-      - name: Build PyPI index
-        run: |
-          dumb-pypi \
-            --package-list package-list.txt \
-            --packages-url https://raw.githubusercontent.com/${{ github.repository }}/main/packages/ \
-            --output-dir index \
-            --title "Juno Labs Jetson PyPI"
+          python build_nested_indexes.py \
+            https://raw.githubusercontent.com/${{ github.repository }}/main \
+            index
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
