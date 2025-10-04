@@ -29,65 +29,6 @@ def get_container_dirs(packages_dir):
     return sorted(container_dirs)
 
 
-def add_copy_button_to_index(index_html_path, container_name):
-    """Add a copy button with pip install command to the index.html."""
-    with open(index_html_path, 'r') as f:
-        content = f.read()
-    
-    # Create the pip install command banner
-    pip_command = f"pip install --index-url https://pypi.juno-labs.com/{container_name}/ your-package"
-    
-    copy_button_html = f"""
-    <div style="background-color: #f0f8ff; border: 1px solid #b0d4f1; padding: 15px; margin: 20px 0; border-radius: 4px;">
-        <div style="display: flex; align-items: center; justify-content: space-between;">
-            <div style="flex-grow: 1;">
-                <strong style="display: block; margin-bottom: 8px; color: #333;">Install packages from this index:</strong>
-                <code id="pip-command" style="background-color: #fff; padding: 8px 12px; border: 1px solid #ddd; border-radius: 3px; display: inline-block; font-family: 'Courier New', monospace; font-size: 13px; color: #333;">{pip_command}</code>
-            </div>
-            <button onclick="copyToClipboard(event)" style="margin-left: 15px; padding: 8px 16px; background-color: #0066cc; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 6px; white-space: nowrap;" onmouseover="this.style.backgroundColor='#0052a3'" onmouseout="this.style.backgroundColor='#0066cc'">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: inline-block;">
-                    <path d="M11 1H3C2.44772 1 2 1.44772 2 2V11C2 11.5523 2.44772 12 3 12H11C11.5523 12 12 11.5523 12 11V2C12 1.44772 11.5523 1 11 1Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M14 5V14C14 14.5523 13.5523 15 13 15H5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                Copy
-            </button>
-        </div>
-    </div>
-    <script>
-    function copyToClipboard(event) {{
-        const text = document.getElementById('pip-command').textContent;
-        navigator.clipboard.writeText(text).then(function() {{
-            const btn = event.target.closest('button');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: inline-block;"><path d="M13 4L6 11L3 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Copied!';
-            btn.style.backgroundColor = '#28a745';
-            setTimeout(function() {{
-                btn.innerHTML = originalText;
-                btn.style.backgroundColor = '#0066cc';
-            }}, 2000);
-        }}, function(err) {{
-            console.error('Could not copy text: ', err);
-        }});
-    }}
-    </script>
-    """
-    
-    # Find the container div and insert after the header
-    # Look for the pattern: <div class="container width">
-    container_pattern = '<div class="container width">'
-    insertion_point = content.find(container_pattern)
-    
-    if insertion_point != -1:
-        # Find the end of the opening container div tag and any immediate child
-        insertion_point = content.find('>', insertion_point) + 1
-        # Insert the copy button HTML
-        content = content[:insertion_point] + copy_button_html + content[insertion_point:]
-        
-        # Write back the modified content
-        with open(index_html_path, 'w') as f:
-            f.write(content)
-
-
 def build_index_for_container(container_name, base_url, output_dir):
     """Build PyPI index for a specific container directory."""
     packages_dir = Path('packages') / container_name
@@ -135,11 +76,6 @@ def build_index_for_container(container_name, base_url, output_dir):
         print(f"Error building index for {container_name}:")
         print(result.stderr)
         sys.exit(1)
-    
-    # Post-process the generated index.html to add copy button
-    index_html_path = output_path / 'index.html'
-    if index_html_path.exists():
-        add_copy_button_to_index(index_html_path, container_name)
     
     # Clean up package list file
     package_list_file.unlink()
@@ -363,16 +299,33 @@ def create_root_index(containers_info, output_dir):
         
         metadata_display = " | ".join(metadata_parts) if metadata_parts else ""
         
-        html_content += f"""            <a href="{container_name}/" class="package">
-                <strong>{title}</strong>
-                <span class="package-meta">{package_count} packages</span>
-                <br>"""
+        # Create pip install command for this container
+        pip_command = f"pip install --index-url https://pypi.juno-labs.com/{container_name}/ your-package"
+        # Create a valid JavaScript function name (replace hyphens with underscores)
+        js_safe_name = container_name.replace('-', '_')
+        
+        html_content += f"""            <div style="margin-bottom: 30px; border: 1px solid #e0e0e0; border-radius: 4px; padding: 15px; background-color: #fafafa;">
+                <a href="{container_name}/" style="text-decoration: none; color: inherit; display: block; margin-bottom: 10px;">
+                    <strong style="color: #0066cc; font-size: 16px;">{title}</strong>
+                    <span class="package-meta">{package_count} packages</span>
+                    <br>"""
         
         if metadata_display:
-            html_content += f"""                <span style="color: #666; font-size: 12px;">{metadata_display}</span>
+            html_content += f"""                    <span style="color: #666; font-size: 12px;">{metadata_display}</span>
 """
         
-        html_content += """            </a>
+        html_content += f"""                </a>
+                <div style="background-color: #f0f8ff; border: 1px solid #b0d4f1; padding: 10px; margin-top: 10px; border-radius: 3px; display: flex; align-items: center; justify-content: space-between;">
+                    <code id="pip-command-{js_safe_name}" style="background-color: #fff; padding: 6px 10px; border: 1px solid #ddd; border-radius: 3px; font-family: 'Courier New', monospace; font-size: 12px; color: #333; flex-grow: 1; margin-right: 10px;">{pip_command}</code>
+                    <button onclick="copyToClipboard_{js_safe_name}(event)" style="padding: 6px 12px; background-color: #0066cc; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 4px; white-space: nowrap; flex-shrink: 0;" onmouseover="this.style.backgroundColor='#0052a3'" onmouseout="this.style.backgroundColor='#0066cc'">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: inline-block;">
+                            <path d="M11 1H3C2.44772 1 2 1.44772 2 2V11C2 11.5523 2.44772 12 3 12H11C11.5523 12 12 11.5523 12 11V2C12 1.44772 11.5523 1 11 1Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M14 5V14C14 14.5523 13.5523 15 13 15H5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Copy
+                    </button>
+                </div>
+            </div>
 """
     
     html_content += """        </div>
@@ -382,6 +335,32 @@ def create_root_index(containers_info, output_dir):
             <a href="https://github.com/juno-ai-labs/pypi" target="_blank">View on GitHub</a>
         </footer>
     </div>
+    
+    <script>
+"""
+    
+    # Add JavaScript function for each container
+    for info in containers_info:
+        container_name = info['name']
+        js_safe_name = container_name.replace('-', '_')
+        html_content += f"""        function copyToClipboard_{js_safe_name}(event) {{{{
+            const text = document.getElementById('pip-command-{js_safe_name}').textContent;
+            navigator.clipboard.writeText(text).then(function() {{{{
+                const btn = event.target.closest('button');
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: inline-block;"><path d="M13 4L6 11L3 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Copied!';
+                btn.style.backgroundColor = '#28a745';
+                setTimeout(function() {{{{
+                    btn.innerHTML = originalHTML;
+                    btn.style.backgroundColor = '#0066cc';
+                }}}}, 2000);
+            }}}}, function(err) {{{{
+                console.error('Could not copy text: ', err);
+            }}}});
+        }}}}
+"""
+    
+    html_content += """    </script>
 </body>
 </html>
 """
