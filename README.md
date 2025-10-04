@@ -2,6 +2,19 @@
 
 A private PyPI repository hosted on GitHub Pages using [dumb-pypi](https://github.com/chriskuehl/dumb-pypi).
 
+## Quick Start
+
+1. **Enable GitHub Pages**: See [SETUP.md](SETUP.md) for detailed setup instructions
+2. **Add packages**: Copy your `.whl` or `.tar.gz` files to the `packages/` directory
+3. **Push to main**: The CI/CD workflow will automatically build and deploy the index
+4. **Install packages**: Use `pip install --index-url https://juno-ai-labs.github.io/pypi/ your-package`
+
+## Documentation
+
+- **[SETUP.md](SETUP.md)** - Complete setup guide for first-time configuration
+- **[USAGE.md](USAGE.md)** - Detailed usage instructions and examples
+- **[packages/README.md](packages/README.md)** - Quick reference for adding packages
+
 ## Overview
 
 This repository automatically generates and publishes a PyPI-compatible package index whenever you upload Python packages (wheels or source distributions) to the `packages/` directory.
