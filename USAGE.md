@@ -41,7 +41,7 @@ The workflow will automatically:
 Once deployed, you can install your package using the container-specific index:
 
 ```bash
-pip install --index-url https://juno-ai-labs.github.io/pypi/nvcr-io-nvidia-l4t-jetpack-r36-4-0/ yourpackage
+pip install --index-url https://pypi.juno-labs.com/nvcr-io-nvidia-l4t-jetpack-r36-4-0/ yourpackage
 ```
 
 ## Using with pip
@@ -50,10 +50,10 @@ pip install --index-url https://juno-ai-labs.github.io/pypi/nvcr-io-nvidia-l4t-j
 
 ```bash
 # Install from your private index only
-pip install --index-url https://juno-ai-labs.github.io/pypi/nvcr-io-nvidia-l4t-jetpack-r36-4-0/ yourpackage
+pip install --index-url https://pypi.juno-labs.com/nvcr-io-nvidia-l4t-jetpack-r36-4-0/ yourpackage
 
 # Use your private index as a fallback to PyPI
-pip install --extra-index-url https://juno-ai-labs.github.io/pypi/nvcr-io-nvidia-l4t-jetpack-r36-4-0/ yourpackage
+pip install --extra-index-url https://pypi.juno-labs.com/nvcr-io-nvidia-l4t-jetpack-r36-4-0/ yourpackage
 ```
 
 ### Option 2: requirements.txt
@@ -61,7 +61,7 @@ pip install --extra-index-url https://juno-ai-labs.github.io/pypi/nvcr-io-nvidia
 Add this at the top of your `requirements.txt`:
 
 ```
---extra-index-url https://juno-ai-labs.github.io/pypi/nvcr-io-nvidia-l4t-jetpack-r36-4-0/
+--extra-index-url https://pypi.juno-labs.com/nvcr-io-nvidia-l4t-jetpack-r36-4-0/
 yourpackage==1.0.0
 requests==2.31.0
 ```
@@ -72,13 +72,13 @@ Create or edit `~/.pip/pip.conf` (Linux/macOS) or `%APPDATA%\pip\pip.ini` (Windo
 
 ```ini
 [global]
-extra-index-url = https://juno-ai-labs.github.io/pypi/nvcr-io-nvidia-l4t-jetpack-r36-4-0/
+extra-index-url = https://pypi.juno-labs.com/nvcr-io-nvidia-l4t-jetpack-r36-4-0/
 ```
 
 ### Option 4: Environment variable
 
 ```bash
-export PIP_EXTRA_INDEX_URL=https://juno-ai-labs.github.io/pypi/nvcr-io-nvidia-l4t-jetpack-r36-4-0/
+export PIP_EXTRA_INDEX_URL=https://pypi.juno-labs.com/nvcr-io-nvidia-l4t-jetpack-r36-4-0/
 pip install yourpackage
 ```
 
@@ -89,7 +89,7 @@ Add to your `pyproject.toml`:
 ```toml
 [[tool.poetry.source]]
 name = "private-pypi"
-url = "https://juno-ai-labs.github.io/pypi/nvcr-io-nvidia-l4t-jetpack-r36-4-0/"
+url = "https://pypi.juno-labs.com/nvcr-io-nvidia-l4t-jetpack-r36-4-0/"
 priority = "supplemental"
 ```
 
@@ -102,7 +102,7 @@ poetry add yourpackage
 ## Using with Pipenv
 
 ```bash
-pipenv install --extra-index-url https://juno-ai-labs.github.io/pypi/nvcr-io-nvidia-l4t-jetpack-r36-4-0/ yourpackage
+pipenv install --extra-index-url https://pypi.juno-labs.com/nvcr-io-nvidia-l4t-jetpack-r36-4-0/ yourpackage
 ```
 
 ## Updating Packages
@@ -160,5 +160,5 @@ The workflow triggers on:
 ### Cannot install package
 
 1. Verify the GitHub Pages site is published and accessible
-2. Check that you're using the correct container-specific URL: `https://juno-ai-labs.github.io/pypi/<container-name>/`
+2. Check that you're using the correct container-specific URL: `https://pypi.juno-labs.com/<container-name>/`
 3. Try with `--index-url` first to test, then switch to `--extra-index-url`

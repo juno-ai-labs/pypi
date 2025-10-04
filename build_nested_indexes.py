@@ -87,209 +87,196 @@ def build_index_for_container(container_name, base_url, output_dir):
 
 def create_root_index(containers_info, output_dir):
     """Create root index.html to navigate nested indexes."""
-    html_content = """<!DOCTYPE html>
-<html lang="en">
+    html_content = """<!doctype html>
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Juno Labs PyPI - Container Images</title>
+    <title>Juno Labs PyPI</title>
     <style>
-        * {
+        /* CSS Reset */
+        html, body, div, span, applet, object, iframe,
+        h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+        a, abbr, acronym, address, big, cite, code,
+        del, dfn, em, img, ins, kbd, q, s, samp,
+        small, strike, strong, sub, sup, tt, var,
+        b, u, i, center,
+        dl, dt, dd, ol, ul, li,
+        fieldset, form, label, legend,
+        table, caption, tbody, tfoot, thead, tr, th, td,
+        article, aside, canvas, details, embed,
+        figure, figcaption, footer, header, hgroup,
+        menu, nav, output, ruby, section, summary,
+        time, mark, audio, video {
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
+            border: 0;
+            font-size: 100%;
+            font: inherit;
+            vertical-align: baseline;
         }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 2rem;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            overflow: hidden;
-        }
-        
-        header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 3rem 2rem;
-            text-align: center;
-        }
-        
-        header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 0.5rem;
-            font-weight: 700;
-        }
-        
-        header p {
-            font-size: 1.1rem;
-            opacity: 0.95;
-        }
-        
-        .content {
-            padding: 3rem 2rem;
-        }
-        
-        .intro {
-            margin-bottom: 3rem;
-            padding: 1.5rem;
-            background: #f8f9fa;
-            border-radius: 8px;
-            border-left: 4px solid #667eea;
-        }
-        
-        .intro h2 {
-            color: #667eea;
-            margin-bottom: 1rem;
-            font-size: 1.5rem;
-        }
-        
-        .intro p {
-            color: #555;
-            margin-bottom: 0.5rem;
-        }
-        
-        .intro code {
-            background: #e9ecef;
-            padding: 0.2rem 0.5rem;
-            border-radius: 4px;
-            font-family: 'Courier New', monospace;
-            font-size: 0.9rem;
-            color: #d63384;
-        }
-        
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 2rem;
-            margin-top: 2rem;
-        }
-        
-        .card {
-            background: white;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            padding: 2rem;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            color: inherit;
+        article, aside, details, figcaption, figure,
+        footer, header, hgroup, menu, nav, section {
             display: block;
         }
-        
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);
-            border-color: #667eea;
+        body {
+            line-height: 1;
         }
-        
-        .card h3 {
-            color: #667eea;
-            margin-bottom: 1rem;
-            font-size: 1.3rem;
-            word-break: break-word;
+        ol, ul {
+            list-style: none;
         }
-        
-        .card-meta {
+        blockquote, q {
+            quotes: none;
+        }
+        blockquote:before, blockquote:after,
+        q:before, q:after {
+            content: '';
+            content: none;
+        }
+        table {
+            border-collapse: collapse;
+            border-spacing: 0;
+        }
+
+        /* Main Styles - matching dumb-pypi */
+        body, html {
+            padding: 0;
+            margin: 0;
+            font-family: Helvetica, Arial, sans-serif;
+        }
+
+        .width {
+            max-width: 960px;
+            margin: 0 auto;
+        }
+
+        .container {
+            margin-top: 75px;
+        }
+
+        .header-container {
+            background-color: #e6f8ff;
+            padding: 20px;
+            border-bottom: solid 1px #e2e2e2;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+        }
+
+        .header {
+            display: table;
+            width: 100%;
+        }
+
+        .title {
+            display: table-cell;
+            vertical-align: middle;
+        }
+
+        .title h1 {
+            margin: 0 !important;
+            font-weight: bold;
+            font-size: 24px;
+        }
+
+        p, h2, h3 {
+            margin-bottom: 10px;
+        }
+
+        h2 {
+            font-weight: bold;
+            font-size: 20px;
+            margin-top: 20px;
+        }
+
+        strong {
+            font-weight: bold;
+        }
+
+        code {
+            font-family: 'Courier New', monospace;
+            background-color: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .package-list {
+            margin-top: 20px;
+        }
+
+        .package {
+            display: block;
+            font-size: 14px;
+            padding: 10px;
+            color: #111;
+            text-decoration: none;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .package:hover {
+            background-color: #ebf1ff;
+        }
+
+        .package strong {
+            color: #0066cc;
+        }
+
+        .package-meta {
             color: #666;
-            font-size: 0.9rem;
-            margin-bottom: 1rem;
+            font-size: 13px;
+            margin-left: 10px;
         }
-        
-        .card-meta .badge {
-            display: inline-block;
-            background: #667eea;
-            color: white;
-            padding: 0.3rem 0.8rem;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
+
+        .intro {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-left: 4px solid #0066cc;
+            margin-bottom: 20px;
         }
-        
-        .card-description {
-            color: #555;
-            font-size: 0.95rem;
+
+        .intro p {
             line-height: 1.5;
+            color: #333;
         }
-        
-        .card-footer {
-            margin-top: 1.5rem;
-            padding-top: 1rem;
-            border-top: 1px solid #e9ecef;
-            color: #667eea;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-        }
-        
-        .card-footer::after {
-            content: '→';
-            margin-left: auto;
-            font-size: 1.5rem;
-        }
-        
+
         footer {
-            background: #f8f9fa;
-            padding: 2rem;
+            margin-top: 40px;
+            padding: 20px 0;
+            border-top: 1px solid #e2e2e2;
             text-align: center;
             color: #666;
-            border-top: 1px solid #e9ecef;
+            font-size: 13px;
         }
-        
+
         footer a {
-            color: #667eea;
+            color: #0066cc;
             text-decoration: none;
-            font-weight: 600;
         }
-        
+
         footer a:hover {
             text-decoration: underline;
-        }
-        
-        @media (max-width: 768px) {
-            body {
-                padding: 1rem;
-            }
-            
-            header h1 {
-                font-size: 2rem;
-            }
-            
-            .content {
-                padding: 2rem 1rem;
-            }
-            
-            .grid {
-                grid-template-columns: 1fr;
-                gap: 1.5rem;
-            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>🐍 Juno Labs PyPI</h1>
-            <p>Private Python Package Index - Container-Specific Builds</p>
-        </header>
-        
-        <div class="content">
-            <div class="intro">
-                <h2>📦 Container-Specific Package Indexes</h2>
-                <p>Each index below contains Python packages built for a specific container image. Choose the index that matches your Docker container to install the correct pre-built wheels.</p>
-                <p><strong>Usage:</strong> <code>pip install --index-url https://juno-ai-labs.github.io/pypi/&lt;container-name&gt;/ your-package</code></p>
+    <div class="header-container">
+        <div class="width header">
+            <div class="title">
+                <h1>Juno Labs PyPI</h1>
             </div>
-            
-            <div class="grid">
+        </div>
+    </div>
+    
+    <div class="width container">
+        <div class="intro">
+            <h2>Container-Specific Package Indexes</h2>
+            <p>Each index below contains Python packages built for a specific container image. Choose the index that matches your Docker container to install the correct pre-built wheels.</p>
+            <p><strong>Usage:</strong> <code>pip install --index-url https://pypi.juno-labs.com/&lt;container-name&gt;/ your-package</code></p>
+        </div>
+        
+        <div class="package-list">
 """
     
     for info in containers_info:
@@ -297,26 +284,19 @@ def create_root_index(containers_info, output_dir):
         title = info['title']
         package_count = info['package_count']
         
-        html_content += f"""                <a href="{container_name}/" class="card">
-                    <h3>{container_name}</h3>
-                    <div class="card-meta">
-                        <span class="badge">{package_count} packages</span>
-                    </div>
-                    <div class="card-description">
-                        {title}
-                    </div>
-                    <div class="card-footer">
-                        View package index
-                    </div>
-                </a>
+        html_content += f"""            <a href="{container_name}/" class="package">
+                <strong>{container_name}</strong>
+                <span class="package-meta">{package_count} packages</span>
+                <br>
+                <span style="color: #666; font-size: 12px;">{title}</span>
+            </a>
 """
     
-    html_content += """            </div>
-        </div>
+    html_content += """        </div>
         
         <footer>
-            <p>Built with <a href="https://github.com/chriskuehl/dumb-pypi" target="_blank">dumb-pypi</a> | 
-            <a href="https://github.com/juno-ai-labs/pypi" target="_blank">View on GitHub</a></p>
+            Built with <a href="https://github.com/chriskuehl/dumb-pypi" target="_blank">dumb-pypi</a> | 
+            <a href="https://github.com/juno-ai-labs/pypi" target="_blank">View on GitHub</a>
         </footer>
     </div>
 </body>

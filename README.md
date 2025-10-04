@@ -7,7 +7,7 @@ A private PyPI repository hosted on GitHub Pages using [dumb-pypi](https://githu
 1. **Enable GitHub Pages**: See [SETUP.md](SETUP.md) for detailed setup instructions
 2. **Add packages**: Copy your `.whl` or `.tar.gz` files to the appropriate container directory under `packages/` (e.g., `packages/nvcr-io-nvidia-l4t-jetpack-r36-4-0/`)
 3. **Push to main**: The CI/CD workflow will automatically build and deploy the indexes
-4. **Install packages**: Use `pip install --index-url https://juno-ai-labs.github.io/pypi/<container-name>/ your-package`
+4. **Install packages**: Use `pip install --index-url https://pypi.juno-labs.com/<container-name>/ your-package`
 
 ## Documentation
 
@@ -50,16 +50,16 @@ Once the indexes are published, you can install packages using pip with the cont
 
 ```bash
 # Install a specific package from a container-specific index
-pip install --index-url https://juno-ai-labs.github.io/pypi/nvcr-io-nvidia-l4t-jetpack-r36-4-0/ mypackage
+pip install --index-url https://pypi.juno-labs.com/nvcr-io-nvidia-l4t-jetpack-r36-4-0/ mypackage
 
 # Use as an extra index alongside PyPI
-pip install --extra-index-url https://juno-ai-labs.github.io/pypi/nvcr-io-nvidia-l4t-jetpack-r36-4-0/ mypackage
+pip install --extra-index-url https://pypi.juno-labs.com/nvcr-io-nvidia-l4t-jetpack-r36-4-0/ mypackage
 ```
 
 Or add to your `requirements.txt`:
 
 ```
---extra-index-url https://juno-ai-labs.github.io/pypi/nvcr-io-nvidia-l4t-jetpack-r36-4-0/
+--extra-index-url https://pypi.juno-labs.com/nvcr-io-nvidia-l4t-jetpack-r36-4-0/
 mypackage==1.0.0
 ```
 
@@ -67,7 +67,7 @@ Or configure in `pip.conf` or `~/.pip/pip.conf`:
 
 ```ini
 [global]
-extra-index-url = https://juno-ai-labs.github.io/pypi/nvcr-io-nvidia-l4t-jetpack-r36-4-0/
+extra-index-url = https://pypi.juno-labs.com/nvcr-io-nvidia-l4t-jetpack-r36-4-0/
 ```
 
 ## Configuration

@@ -89,7 +89,7 @@ https://<username>.github.io/<repository-name>/
 
 For this repository:
 ```
-https://juno-ai-labs.github.io/pypi/
+https://pypi.juno-labs.com/
 ```
 
 You can browse the root page to see all available container indexes, then use a container-specific URL to install packages.
@@ -99,7 +99,7 @@ You can browse the root page to see all available container indexes, then use a 
 Test your private PyPI by installing a package from a container-specific index:
 
 ```bash
-pip install --index-url https://juno-ai-labs.github.io/pypi/nvcr-io-nvidia-l4t-jetpack-r36-4-0/ your-package
+pip install --index-url https://pypi.juno-labs.com/nvcr-io-nvidia-l4t-jetpack-r36-4-0/ your-package
 ```
 
 ## Troubleshooting

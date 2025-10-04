@@ -36,5 +36,5 @@ git push
 Use the container-specific index URL when installing:
 
 ```bash
-pip install --index-url https://juno-ai-labs.github.io/pypi/nvcr-io-nvidia-l4t-jetpack-r36-4-0/ mypackage
+pip install --index-url https://pypi.juno-labs.com/nvcr-io-nvidia-l4t-jetpack-r36-4-0/ mypackage
 ```
