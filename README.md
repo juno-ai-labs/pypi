@@ -5,9 +5,9 @@ A private PyPI repository hosted on GitHub Pages using [dumb-pypi](https://githu
 ## Quick Start
 
 1. **Enable GitHub Pages**: See [SETUP.md](SETUP.md) for detailed setup instructions
-2. **Add packages**: Copy your `.whl` or `.tar.gz` files to the `packages/` directory
-3. **Push to main**: The CI/CD workflow will automatically build and deploy the index
-4. **Install packages**: Use `pip install --index-url https://juno-ai-labs.github.io/pypi/ your-package`
+2. **Add packages**: Copy your `.whl` or `.tar.gz` files to the appropriate container directory under `packages/` (e.g., `packages/nvcr-io-nvidia-l4t-jetpack-r36-4-0/`)
+3. **Push to main**: The CI/CD workflow will automatically build and deploy the indexes
+4. **Install packages**: Use `pip install --index-url https://pypi.juno-labs.com/<container-name>/ your-package`
 
 ## Documentation
 
@@ -17,49 +17,49 @@ A private PyPI repository hosted on GitHub Pages using [dumb-pypi](https://githu
 
 ## Overview
 
-This repository automatically generates and publishes a PyPI-compatible package index whenever you upload Python packages (wheels or source distributions) to the `packages/` directory.
+This repository automatically generates and publishes PyPI-compatible package indexes for different Docker container builds. Each container directory under `packages/` gets its own PyPI index, allowing you to install packages built specifically for your container environment.
 
 ## How It Works
 
-1. **Upload packages**: Add your `.whl`, `.tar.gz`, or `.zip` files to the `packages/` directory
-2. **Automatic indexing**: GitHub Actions automatically generates a PyPI index using `dumb-pypi`
-3. **Publishing**: The index is deployed to GitHub Pages
-4. **Installation**: Use pip to install packages from your private index
+1. **Upload packages**: Add your `.whl`, `.tar.gz`, or `.zip` files to a container-specific directory under `packages/` (e.g., `packages/nvcr-io-nvidia-l4t-jetpack-r36-4-0/`)
+2. **Automatic indexing**: GitHub Actions automatically generates separate PyPI indexes for each container using `dumb-pypi`
+3. **Publishing**: The indexes are deployed to GitHub Pages with a root navigation page
+4. **Installation**: Use pip to install packages from the appropriate container-specific index
 
 ## Adding Packages
 
 ```bash
-# Copy your package to the packages directory
-cp dist/mypackage-1.0.0-py3-none-any.whl packages/
+# Copy your package to the appropriate container directory
+cp dist/mypackage-1.0.0-py3-none-any.whl packages/nvcr-io-nvidia-l4t-jetpack-r36-4-0/
 
 # Commit and push
-git add packages/mypackage-1.0.0-py3-none-any.whl
-git commit -m "Add mypackage 1.0.0"
+git add packages/nvcr-io-nvidia-l4t-jetpack-r36-4-0/mypackage-1.0.0-py3-none-any.whl
+git commit -m "Add mypackage 1.0.0 for nvcr-io-nvidia-l4t-jetpack-r36-4-0"
 git push
 ```
 
 The CI/CD workflow will automatically:
-- Scan the `packages/` directory for all package files
-- Generate a package list
-- Build the PyPI index
+- Scan each container directory under `packages/` for package files
+- Generate separate indexes for each container
+- Create a root navigation page to browse available containers
 - Deploy to GitHub Pages
 
 ## Installing Packages
 
-Once the index is published, you can install packages using pip:
+Once the indexes are published, you can install packages using pip with the container-specific index:
 
 ```bash
-# Install a specific package
-pip install --index-url https://juno-ai-labs.github.io/pypi/ mypackage
+# Install a specific package from a container-specific index
+pip install --index-url https://pypi.juno-labs.com/nvcr-io-nvidia-l4t-jetpack-r36-4-0/ mypackage
 
 # Use as an extra index alongside PyPI
-pip install --extra-index-url https://juno-ai-labs.github.io/pypi/ mypackage
+pip install --extra-index-url https://pypi.juno-labs.com/nvcr-io-nvidia-l4t-jetpack-r36-4-0/ mypackage
 ```
 
 Or add to your `requirements.txt`:
 
 ```
---extra-index-url https://juno-ai-labs.github.io/pypi/
+--extra-index-url https://pypi.juno-labs.com/nvcr-io-nvidia-l4t-jetpack-r36-4-0/
 mypackage==1.0.0
 ```
 
@@ -67,15 +67,16 @@ Or configure in `pip.conf` or `~/.pip/pip.conf`:
 
 ```ini
 [global]
-extra-index-url = https://juno-ai-labs.github.io/pypi/
+extra-index-url = https://pypi.juno-labs.com/nvcr-io-nvidia-l4t-jetpack-r36-4-0/
 ```
 
 ## Configuration
 
-The PyPI index is built using the following configuration:
-- **Package list**: Automatically generated from files in `packages/`
-- **Package URL**: Raw GitHub content URL for package files
-- **Output directory**: `index/` (deployed to GitHub Pages)
+The PyPI indexes are built using the following configuration:
+- **Package lists**: Automatically generated from files in each container directory
+- **Package URLs**: Raw GitHub content URLs for package files in each container directory
+- **Output structure**: `index/` with subdirectories for each container (deployed to GitHub Pages)
+- **Container metadata**: Read from `info.yaml` in each container directory
 
 ## GitHub Pages Setup
 

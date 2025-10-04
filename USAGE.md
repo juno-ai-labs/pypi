@@ -20,28 +20,28 @@ flit build
 git clone https://github.com/juno-ai-labs/pypi.git
 cd pypi
 
-# Copy your wheel and/or source distribution
-cp /path/to/your/project/dist/yourpackage-1.0.0-py3-none-any.whl packages/
+# Copy your wheel and/or source distribution to the appropriate container directory
+cp /path/to/your/project/dist/yourpackage-1.0.0-py3-none-any.whl packages/nvcr-io-nvidia-l4t-jetpack-r36-4-0/
 
 # Commit and push
-git add packages/yourpackage-1.0.0-py3-none-any.whl
-git commit -m "Add yourpackage 1.0.0"
+git add packages/nvcr-io-nvidia-l4t-jetpack-r36-4-0/yourpackage-1.0.0-py3-none-any.whl
+git commit -m "Add yourpackage 1.0.0 for nvcr-io-nvidia-l4t-jetpack-r36-4-0"
 git push origin main
 ```
 
 ### 3. Wait for GitHub Actions
 
 The workflow will automatically:
-- Detect the new package in the `packages/` directory
-- Generate the PyPI index
+- Detect the new package in the container directory
+- Generate separate PyPI indexes for each container
 - Deploy to GitHub Pages (usually takes 1-2 minutes)
 
 ### 4. Install your package
 
-Once deployed, you can install your package:
+Once deployed, you can install your package using the container-specific index:
 
 ```bash
-pip install --index-url https://juno-ai-labs.github.io/pypi/ yourpackage
+pip install --index-url https://pypi.juno-labs.com/nvcr-io-nvidia-l4t-jetpack-r36-4-0/ yourpackage
 ```
 
 ## Using with pip
@@ -50,10 +50,10 @@ pip install --index-url https://juno-ai-labs.github.io/pypi/ yourpackage
 
 ```bash
 # Install from your private index only
-pip install --index-url https://juno-ai-labs.github.io/pypi/ yourpackage
+pip install --index-url https://pypi.juno-labs.com/nvcr-io-nvidia-l4t-jetpack-r36-4-0/ yourpackage
 
 # Use your private index as a fallback to PyPI
-pip install --extra-index-url https://juno-ai-labs.github.io/pypi/ yourpackage
+pip install --extra-index-url https://pypi.juno-labs.com/nvcr-io-nvidia-l4t-jetpack-r36-4-0/ yourpackage
 ```
 
 ### Option 2: requirements.txt
@@ -61,7 +61,7 @@ pip install --extra-index-url https://juno-ai-labs.github.io/pypi/ yourpackage
 Add this at the top of your `requirements.txt`:
 
 ```
---extra-index-url https://juno-ai-labs.github.io/pypi/
+--extra-index-url https://pypi.juno-labs.com/nvcr-io-nvidia-l4t-jetpack-r36-4-0/
 yourpackage==1.0.0
 requests==2.31.0
 ```
@@ -72,13 +72,13 @@ Create or edit `~/.pip/pip.conf` (Linux/macOS) or `%APPDATA%\pip\pip.ini` (Windo
 
 ```ini
 [global]
-extra-index-url = https://juno-ai-labs.github.io/pypi/
+extra-index-url = https://pypi.juno-labs.com/nvcr-io-nvidia-l4t-jetpack-r36-4-0/
 ```
 
 ### Option 4: Environment variable
 
 ```bash
-export PIP_EXTRA_INDEX_URL=https://juno-ai-labs.github.io/pypi/
+export PIP_EXTRA_INDEX_URL=https://pypi.juno-labs.com/nvcr-io-nvidia-l4t-jetpack-r36-4-0/
 pip install yourpackage
 ```
 
@@ -89,7 +89,7 @@ Add to your `pyproject.toml`:
 ```toml
 [[tool.poetry.source]]
 name = "private-pypi"
-url = "https://juno-ai-labs.github.io/pypi/"
+url = "https://pypi.juno-labs.com/nvcr-io-nvidia-l4t-jetpack-r36-4-0/"
 priority = "supplemental"
 ```
 
@@ -102,19 +102,19 @@ poetry add yourpackage
 ## Using with Pipenv
 
 ```bash
-pipenv install --extra-index-url https://juno-ai-labs.github.io/pypi/ yourpackage
+pipenv install --extra-index-url https://pypi.juno-labs.com/nvcr-io-nvidia-l4t-jetpack-r36-4-0/ yourpackage
 ```
 
 ## Updating Packages
 
-To update a package, simply add the new version to the `packages/` directory:
+To update a package, simply add the new version to the appropriate container directory:
 
 ```bash
 # Add new version
-cp dist/yourpackage-1.1.0-py3-none-any.whl packages/
+cp dist/yourpackage-1.1.0-py3-none-any.whl packages/nvcr-io-nvidia-l4t-jetpack-r36-4-0/
 
 # Commit and push
-git add packages/yourpackage-1.1.0-py3-none-any.whl
+git add packages/nvcr-io-nvidia-l4t-jetpack-r36-4-0/yourpackage-1.1.0-py3-none-any.whl
 git commit -m "Update yourpackage to 1.1.0"
 git push origin main
 ```
@@ -127,7 +127,7 @@ To remove a package from the index:
 
 ```bash
 # Remove the package file
-git rm packages/yourpackage-1.0.0-py3-none-any.whl
+git rm packages/nvcr-io-nvidia-l4t-jetpack-r36-4-0/yourpackage-1.0.0-py3-none-any.whl
 
 # Commit and push
 git commit -m "Remove yourpackage 1.0.0"
@@ -152,7 +152,7 @@ The workflow triggers on:
 
 ### Package not appearing in index
 
-1. Check that the file is in the `packages/` directory
+1. Check that the file is in a container directory under `packages/` (e.g., `packages/nvcr-io-nvidia-l4t-jetpack-r36-4-0/`)
 2. Verify the file has a supported extension (`.whl`, `.tar.gz`, `.zip`)
 3. Check the GitHub Actions workflow for errors
 4. Wait a few minutes for GitHub Pages to update
@@ -160,5 +160,5 @@ The workflow triggers on:
 ### Cannot install package
 
 1. Verify the GitHub Pages site is published and accessible
-2. Check that you're using the correct URL: `https://juno-ai-labs.github.io/pypi/`
+2. Check that you're using the correct container-specific URL: `https://pypi.juno-labs.com/<container-name>/`
 3. Try with `--index-url` first to test, then switch to `--extra-index-url`
