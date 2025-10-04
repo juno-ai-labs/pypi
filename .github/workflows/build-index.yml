@@ -35,7 +35,7 @@ jobs:
       - name: Build nested PyPI indexes
         run: |
           python build_nested_indexes.py \
-            https://raw.githubusercontent.com/${{ github.repository }}/main \
+            https://files-pypi.juno-labs.com/main \
             index
 
       - name: Setup Pages
