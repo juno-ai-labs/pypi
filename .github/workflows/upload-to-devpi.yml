@@ -1,0 +1,181 @@
+name: Upload to devpi
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'packages/**'
+  workflow_dispatch:
+
+jobs:
+  upload-changed-packages:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # Need at least 2 commits to compare
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install devpi-client
+        run: pip install devpi-client
+
+      - name: Detect changed package directories
+        id: detect-changes
+        run: |
+          # Get the list of changed files in packages/
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            # For manual triggers, process all packages
+            echo "Manual trigger - processing all packages"
+            CHANGED_PACKAGES=$(find packages -mindepth 1 -maxdepth 1 -type d | sed 's|packages/||' | grep -v '^$')
+          else
+            # For push events, detect changed packages
+            CHANGED_FILES=$(git diff --name-only HEAD^ HEAD -- packages/)
+
+            if [ -z "$CHANGED_FILES" ]; then
+              echo "No changes detected in packages/"
+              echo "changed_packages=" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+
+            # Extract unique package directories (first level under packages/)
+            CHANGED_PACKAGES=$(echo "$CHANGED_FILES" | \
+              grep '^packages/' | \
+              cut -d/ -f2 | \
+              sort -u | \
+              grep -v '^$')
+          fi
+
+          if [ -z "$CHANGED_PACKAGES" ]; then
+            echo "No package directories changed"
+            echo "changed_packages=" >> $GITHUB_OUTPUT
+          else
+            echo "Changed packages:"
+            echo "$CHANGED_PACKAGES"
+            # Convert to JSON array for matrix
+            PACKAGES_JSON=$(echo "$CHANGED_PACKAGES" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+            echo "changed_packages=$PACKAGES_JSON" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Configure devpi client
+        if: steps.detect-changes.outputs.changed_packages != ''
+        run: |
+          devpi use https://jetson-pypi.juno-labs.com
+          devpi login root --password="${{ secrets.DEVPI_ROOT_PASSWORD }}"
+
+      - name: Upload packages to devpi
+        if: steps.detect-changes.outputs.changed_packages != ''
+        run: |
+          PACKAGES='${{ steps.detect-changes.outputs.changed_packages }}'
+
+          echo "$PACKAGES" | jq -r '.[]' | while read -r package_dir; do
+            if [ -z "$package_dir" ]; then
+              continue
+            fi
+
+            echo "========================================="
+            echo "Processing package directory: $package_dir"
+            echo "========================================="
+
+            # Map package directory to devpi index
+            INDEX_NAME="root/$package_dir"
+            PACKAGE_PATH="packages/$package_dir"
+
+            # Check if directory exists and has files
+            if [ ! -d "$PACKAGE_PATH" ]; then
+              echo "Warning: Directory $PACKAGE_PATH not found, skipping"
+              continue
+            fi
+
+            # Count uploadable files (.whl, .tar.gz, .zip)
+            FILE_COUNT=$(find "$PACKAGE_PATH" -maxdepth 1 -type f \( -name "*.whl" -o -name "*.tar.gz" -o -name "*.zip" \) | wc -l)
+
+            if [ "$FILE_COUNT" -eq 0 ]; then
+              echo "No package files found in $PACKAGE_PATH, skipping"
+              continue
+            fi
+
+            echo "Found $FILE_COUNT package file(s) in directory"
+
+            # Create index if it doesn't exist
+            echo "Ensuring index $INDEX_NAME exists..."
+            if ! devpi index "$INDEX_NAME" > /dev/null 2>&1; then
+              echo "Creating index $INDEX_NAME..."
+              devpi index -c "$INDEX_NAME" bases=root/pypi 2>&1 || {
+                echo "Warning: Failed to create index, it may already exist"
+              }
+            else
+              echo "Index $INDEX_NAME already exists"
+            fi
+
+            # Use the target index
+            devpi use "$INDEX_NAME"
+
+            # Upload files, checking hashes to skip duplicates
+            echo "Processing files for upload..."
+
+            find "$PACKAGE_PATH" -maxdepth 1 -type f \( -name "*.whl" -o -name "*.tar.gz" -o -name "*.zip" \) | while read -r file; do
+              filename=$(basename "$file")
+              echo ""
+              echo "Checking: $filename"
+
+              # Extract package name and version from filename
+              # For wheels: package-version-pythonversion-abi-platform.whl
+              # For tarballs: package-version.tar.gz
+              if [[ "$filename" =~ ^([^-]+)-([0-9][^-]*) ]]; then
+                pkg_name="${BASH_REMATCH[1]}"
+                pkg_version="${BASH_REMATCH[2]}"
+              else
+                echo "  Warning: Could not parse package name/version from filename, uploading anyway"
+                devpi upload "$file" 2>&1 | sed 's/^/  /'
+                continue
+              fi
+
+              # Calculate local file hash
+              local_hash=$(sha256sum "$file" | cut -d' ' -f1)
+              echo "  Local SHA256: $local_hash"
+
+              # Check if this version exists on devpi
+              echo "  Querying devpi for $pkg_name version $pkg_version..."
+              remote_data=$(devpi getjson "/$INDEX_NAME/$pkg_name/$pkg_version" 2>/dev/null || echo "{}")
+
+              # Extract hash for matching filename
+              remote_hash=$(echo "$remote_data" | jq -r --arg fname "$filename" \
+                '.result["+links"][]? | select(.href | endswith($fname)) | .hash_spec' 2>/dev/null | \
+                sed 's/sha256=//')
+
+              if [ -n "$remote_hash" ] && [ "$remote_hash" != "null" ] && [ "$remote_hash" != "" ]; then
+                echo "  Remote SHA256: $remote_hash"
+
+                if [ "$local_hash" = "$remote_hash" ]; then
+                  echo "  ✓ File already exists with same hash - SKIPPING upload (bandwidth saved!)"
+                  continue
+                else
+                  echo "  ⚠ File exists but hash differs - uploading new version"
+                fi
+              else
+                echo "  File not found on server - uploading"
+              fi
+
+              # Upload the file
+              echo "  Uploading $filename..."
+              if devpi upload "$file" 2>&1 | sed 's/^/  /'; then
+                echo "  ✓ Successfully uploaded: $filename"
+              else
+                echo "  ✗ Failed to upload: $filename"
+              fi
+            done
+
+            echo ""
+            echo "Completed processing $package_dir"
+            echo ""
+          done
+
+          echo "========================================="
+          echo "Upload process completed"
+          echo "========================================="
