@@ -16,6 +16,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 2  # Need at least 2 commits to compare
+          lfs: true  # Download Git LFS files (wheels are stored in LFS)
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -164,10 +165,15 @@ jobs:
 
               # Upload the file
               echo "  Uploading $filename..."
-              if devpi upload "$file" 2>&1 | sed 's/^/  /'; then
+              upload_output=$(mktemp)
+              if devpi upload "$file" > "$upload_output" 2>&1; then
+                cat "$upload_output" | sed 's/^/  /'
                 echo "  ✓ Successfully uploaded: $filename"
+                rm -f "$upload_output"
               else
+                cat "$upload_output" | sed 's/^/  /'
                 echo "  ✗ Failed to upload: $filename"
+                rm -f "$upload_output"
               fi
             done
 
