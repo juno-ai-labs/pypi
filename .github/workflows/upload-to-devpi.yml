@@ -65,8 +65,11 @@ jobs:
 
       - name: Configure devpi client
         if: steps.detect-changes.outputs.changed_packages != ''
+        env:
+          DEVPI_INDEX_URL: https://jetson-pypi.juno-labs.com
         run: |
-          devpi use https://jetson-pypi.juno-labs.com
+          # Configure devpi to use HTTPS
+          devpi use "$DEVPI_INDEX_URL"
           devpi login root --password="${{ secrets.DEVPI_ROOT_PASSWORD }}"
 
       - name: Upload packages to devpi
