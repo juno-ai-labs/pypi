@@ -87,7 +87,7 @@ jobs:
             echo "========================================="
 
             # Map package directory to devpi index
-            INDEX_NAME="root/$package_dir"
+            INDEX_NAME="images/$package_dir"
             PACKAGE_PATH="packages/$package_dir"
 
             # Check if directory exists and has files
