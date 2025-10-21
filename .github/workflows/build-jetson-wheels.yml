@@ -1,0 +1,142 @@
+name: Build Jetson Torch Wheels
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  build-wheels:
+    name: Build wheels for torch ${{ matrix.torch_version }}
+    runs-on: linux-arm-ubuntu-22
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - torch_version: "2.7.0"
+            torchaudio_version: "2.7.0"
+          - torch_version: "2.8.0"
+            torchaudio_version: "2.8.0"
+    env:
+      BASE_IMAGE: ghcr.io/juno-ai-labs/l4t-jetpack:r36.4.0
+      DOCKERFILE: Dockerfiles/l4t-jetpack-torch-torchaudio.Dockerfile
+      PACKAGE_DIR: packages/nvcr-io-nvidia-l4t-jetpack-r36-4-0
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check for existing wheels
+        id: check
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          torch_pattern="${PACKAGE_DIR}/torch-${{ matrix.torch_version }}*.whl"
+          audio_pattern="${PACKAGE_DIR}/torchaudio-${{ matrix.torchaudio_version }}*.whl"
+          torch_matches=($(compgen -G "${torch_pattern}" || true))
+          audio_matches=($(compgen -G "${audio_pattern}" || true))
+          if (( ${#torch_matches[@]} > 0 )) && (( ${#audio_matches[@]} > 0 )); then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+        if: steps.check.outputs.skip != 'true'
+
+      - name: Build PyTorch and TorchAudio wheels
+        if: steps.check.outputs.skip != 'true'
+        env:
+          TORCH_VERSION: ${{ matrix.torch_version }}
+          TORCHAUDIO_VERSION: ${{ matrix.torchaudio_version }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          docker buildx build \
+            --progress plain \
+            --platform linux/arm64 \
+            --build-arg BASE_IMAGE="${BASE_IMAGE}" \
+            --build-arg PYTORCH_VERSION="${TORCH_VERSION}" \
+            --build-arg TORCHAUDIO_VERSION="${TORCHAUDIO_VERSION}" \
+            --target artifact \
+            --output type=local,dest=artifacts \
+            -f "${DOCKERFILE}" .
+
+      - name: Upload wheel artifacts
+        if: steps.check.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.torch_version }}
+          path: artifacts/wheels
+          retention-days: 7
+
+  commit-packages:
+    name: Commit wheels
+    needs: build-wheels
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    env:
+      PACKAGE_DIR: packages/nvcr-io-nvidia-l4t-jetpack-r36-4-0
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded
+          pattern: wheels-*
+          merge-multiple: true
+          if-no-artifact: ignore
+
+      - name: Stage wheels into repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${PACKAGE_DIR}"
+          shopt -s nullglob
+          mapfile -t wheels < <(find downloaded -type f -name '*.whl')
+          if (( ${#wheels[@]} == 0 )); then
+            echo "No new wheels to stage; nothing to commit."
+            exit 0
+          fi
+          changed_files=0
+          for wheel in "${wheels[@]}"; do
+            dest="${PACKAGE_DIR}/$(basename "$wheel")"
+            if [[ -e "$dest" ]]; then
+              echo "Skipping existing wheel ${dest}"
+              continue
+            fi
+            cp "$wheel" "$dest"
+            echo "Added wheel $(basename "$wheel")"
+            changed_files=$((changed_files + 1))
+          done
+          if (( changed_files == 0 )); then
+            echo "No new wheels copied after filtering existing files."
+            exit 0
+          fi
+
+      - name: Commit and push wheels
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$(git status --porcelain "${PACKAGE_DIR}")" ]]; then
+            echo "No changes detected; skipping commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "${PACKAGE_DIR}"
+          versions=$(git diff --cached --name-only -- "${PACKAGE_DIR}" | sed -n 's|.*/torch-\([0-9.]*\).*|\1|p' | sort -u | paste -sd, -)
+          if [[ -z "$versions" ]]; then
+            commit_message="Add Jetson wheels"
+          else
+            commit_message="Add Jetson torch ${versions} wheels"
+          fi
+          git commit -m "${commit_message}"
+          git push
