@@ -57,6 +57,7 @@ RUN cd /workspace/pytorch && \
     python3 -m pip install --no-cache-dir -r requirements.txt
 
 ENV PYTORCH_BUILD_NUMBER=${PYTORCH_BUILD_NUMBER} \
+    USE_CUDA=1 \
     USE_CUDNN=1 \
     USE_CUSPARSELT=0 \
     USE_CUDSS=0 \
@@ -77,7 +78,8 @@ ENV PYTORCH_BUILD_NUMBER=${PYTORCH_BUILD_NUMBER} \
     BLAS="OpenBLAS" \
     USE_PRIORITIZED_TEXT_FOR_LD=1 \
     BUILD_NVFUSER=1 \
-    USE_GTEST=0
+    USE_GTEST=0 \
+    BUILD_TEST=0
 
 # Build PyTorch wheel
 RUN cd /workspace/pytorch && \
