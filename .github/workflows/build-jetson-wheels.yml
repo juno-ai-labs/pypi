@@ -101,7 +101,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - cuda_python_version: "12.6.0"
+          - cuda_python_version: "12.9.4"
     env:
       BASE_IMAGE: ghcr.io/juno-ai-labs/l4t-jetpack:r36.4.0
       DOCKERFILE: Dockerfiles/l4t-jetpack-cuda-python.Dockerfile
