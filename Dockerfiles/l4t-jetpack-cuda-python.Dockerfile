@@ -15,7 +15,7 @@ ARG CUDA_PYTHON_BUILD_NUMBER=1
 # Base dependencies for building cuda-python
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-pip python3-venv python3-dev \
-    build-essential cmake git ninja-build \
+    build-essential cmake git ninja-build && \
     rm -rf /var/lib/apt/lists/*
 
 ENV PYTHONDONTWRITEBYTECODE=1
