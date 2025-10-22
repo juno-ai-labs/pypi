@@ -157,8 +157,10 @@ jobs:
           docker buildx build \
             --progress plain \
             --platform linux/arm64 \
+            --memory=56g --memory-swap=96g \
             --build-arg BASE_IMAGE="${BASE_IMAGE}" \
             --build-arg CUDA_PYTHON_VERSION="${CUDA_PYTHON_VERSION}" \
+            --build-arg MAX_JOBS=8 \
             --target artifact \
             --cache-from "type=registry,ref=${CACHE_IMAGE}" \
             --cache-to "type=registry,ref=${CACHE_IMAGE},mode=max" \
