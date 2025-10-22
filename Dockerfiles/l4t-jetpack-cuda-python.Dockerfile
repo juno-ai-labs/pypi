@@ -16,7 +16,6 @@ ARG CUDA_PYTHON_BUILD_NUMBER=1
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-pip python3-venv python3-dev \
     build-essential cmake git ninja-build \
-    libcublas-dev && \
     rm -rf /var/lib/apt/lists/*
 
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -41,10 +40,13 @@ RUN cd /workspace/cuda-python && \
 
 ENV CUDA_PYTHON_BUILD_NUMBER=${CUDA_PYTHON_BUILD_NUMBER}
 
+ARG MAX_JOBS=8
+ENV MAX_JOBS=${MAX_JOBS}
+
 # Build cuda-python wheel
 RUN cd /workspace/cuda-python && \
     export MAX_JOBS=$(nproc) && \
-    python3 setup.py bdist_wheel --dist-dir /wheels
+    python3 setup.py bdist_wheel --dist-dir /wheels -j${MAX_JOBS}
 
 # Install cuda-python to ensure the wheel is valid and clean up
 RUN python3 -m pip install --no-cache-dir /wheels/cuda_python*.whl && \
