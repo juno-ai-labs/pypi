@@ -78,7 +78,7 @@ jobs:
             --build-arg BASE_IMAGE="${BASE_IMAGE}" \
             --build-arg PYTORCH_VERSION="${TORCH_VERSION}" \
             --build-arg TORCHAUDIO_VERSION="${TORCHAUDIO_VERSION}" \
-            --build-arg MAX_JOBS=4 \
+            --build-arg MAX_JOBS=1 \
             --target artifact \
             --cache-from "type=registry,ref=${CACHE_IMAGE}" \
             --cache-to "type=registry,ref=${CACHE_IMAGE},mode=max" \
