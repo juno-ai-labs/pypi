@@ -1,4 +1,4 @@
-name: Build Jetson Torch Wheels
+name: Build Jetson Wheels
 
 on:
   workflow_dispatch: {}
@@ -74,9 +74,11 @@ jobs:
           docker buildx build \
             --progress plain \
             --platform linux/arm64 \
+            --memory=56g --memory-swap=96g \
             --build-arg BASE_IMAGE="${BASE_IMAGE}" \
             --build-arg PYTORCH_VERSION="${TORCH_VERSION}" \
             --build-arg TORCHAUDIO_VERSION="${TORCHAUDIO_VERSION}" \
+            --build-arg MAX_JOBS=8 \
             --target artifact \
             --cache-from "type=registry,ref=${CACHE_IMAGE}" \
             --cache-to "type=registry,ref=${CACHE_IMAGE},mode=max" \
