@@ -91,9 +91,89 @@ jobs:
           path: artifacts/wheels
           retention-days: 7
 
+  build-cuda-python:
+    name: Build cuda-python ${{ matrix.cuda_python_version }}
+    runs-on: linux-arm-ubuntu-22-large
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - cuda_python_version: "13.0.3"
+    env:
+      BASE_IMAGE: ghcr.io/juno-ai-labs/l4t-jetpack:r36.4.0
+      DOCKERFILE: Dockerfiles/l4t-jetpack-cuda-python.Dockerfile
+      PACKAGE_DIR: packages/nvcr-io-nvidia-l4t-jetpack-r36-4-0
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check for existing wheels
+        id: check
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          cuda_python_pattern="${PACKAGE_DIR}/cuda_python-${{ matrix.cuda_python_version }}*.whl"
+          cuda_python_matches=($(compgen -G "${cuda_python_pattern}" || true))
+          if (( ${#cuda_python_matches[@]} > 0 )); then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+        if: steps.check.outputs.skip != 'true'
+
+      - name: Log in to GHCR
+        if: steps.check.outputs.skip != 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.PACKAGES_SECRET_TOKEN }}
+
+      - name: Prime build cache
+        if: steps.check.outputs.skip != 'true'
+        env:
+          CACHE_IMAGE: ghcr.io/juno-ai-labs/cache-l4t-cuda-python-${{ matrix.cuda_python_version }}
+        run: |
+          set -euo pipefail
+          docker pull "${CACHE_IMAGE}" || echo "No existing cache image ${CACHE_IMAGE}"
+
+      - name: Build cuda-python wheel
+        if: steps.check.outputs.skip != 'true'
+        env:
+          CUDA_PYTHON_VERSION: ${{ matrix.cuda_python_version }}
+          CACHE_IMAGE: ghcr.io/juno-ai-labs/cache-l4t-cuda-python-${{ matrix.cuda_python_version }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          docker buildx build \
+            --progress plain \
+            --platform linux/arm64 \
+            --build-arg BASE_IMAGE="${BASE_IMAGE}" \
+            --build-arg CUDA_PYTHON_VERSION="${CUDA_PYTHON_VERSION}" \
+            --target artifact \
+            --cache-from "type=registry,ref=${CACHE_IMAGE}" \
+            --cache-to "type=registry,ref=${CACHE_IMAGE},mode=max" \
+            --output type=local,dest=artifacts \
+            -f "${DOCKERFILE}" .
+
+      - name: Upload wheel artifacts
+        if: steps.check.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-cuda-python-${{ matrix.cuda_python_version }}
+          path: artifacts/wheels
+          retention-days: 7
+
   commit-packages:
     name: Commit wheels
-    needs: build-wheels
+    needs: [build-wheels, build-cuda-python]
     runs-on: ubuntu-22.04
     permissions:
       contents: write
@@ -152,11 +232,16 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add "${PACKAGE_DIR}"
-          versions=$(git diff --cached --name-only -- "${PACKAGE_DIR}" | sed -n 's|.*/torch-\([0-9.]*\).*|\1|p' | sort -u | paste -sd, -)
-          if [[ -z "$versions" ]]; then
-            commit_message="Add Jetson wheels"
+          torch_versions=$(git diff --cached --name-only -- "${PACKAGE_DIR}" | sed -n 's|.*/torch-\([0-9.]*\).*|\1|p' | sort -u | paste -sd, -)
+          cuda_python_versions=$(git diff --cached --name-only -- "${PACKAGE_DIR}" | sed -n 's|.*/cuda_python-\([0-9.]*\).*|\1|p' | sort -u | paste -sd, -)
+          if [[ -n "$torch_versions" ]] && [[ -n "$cuda_python_versions" ]]; then
+            commit_message="Add Jetson torch ${torch_versions} and cuda-python ${cuda_python_versions} wheels"
+          elif [[ -n "$torch_versions" ]]; then
+            commit_message="Add Jetson torch ${torch_versions} wheels"
+          elif [[ -n "$cuda_python_versions" ]]; then
+            commit_message="Add Jetson cuda-python ${cuda_python_versions} wheels"
           else
-            commit_message="Add Jetson torch ${versions} wheels"
+            commit_message="Add Jetson wheels"
           fi
           git commit -m "${commit_message}"
           git push
