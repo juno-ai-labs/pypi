@@ -9,7 +9,7 @@ ENV CUDA_HOME=/usr/local/cuda \
 SHELL ["/bin/bash", "-c"]
 
 # Shared build arguments
-ARG CUDA_PYTHON_VERSION=12.6.0
+ARG CUDA_PYTHON_VERSION=12.9.4
 ARG CUDA_PYTHON_BUILD_NUMBER=1
 
 # Base dependencies for building cuda-python
