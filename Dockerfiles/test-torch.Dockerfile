@@ -22,10 +22,9 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip
 # Install PyTorch from the private PyPI index
 ARG PYTORCH_INDEX_URL=https://jetson-pypi.juno-labs.com/images/nvcr-io-nvidia-l4t-jetpack-r36-4-0
 ARG VERSION=2.8.0
-RUN python3 -m pip install --no-cache-dir \
-    --index-url ${PYTORCH_INDEX_URL} \
-    --extra-index-url https://pypi.org/simple \
-    torch==${VERSION}
+
+RUN pip3 config set global.index-url "${PYTORCH_INDEX_URL"
+RUN python3 -m pip install --no-cache-dir torch==${VERSION}
 
 # Create test script directory
 RUN mkdir -p /tests
