@@ -14,6 +14,7 @@ SHELL ["/bin/bash", "-c"]
 # Install Python and audio dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-pip python3-venv \
+    libopenblas0 \
     libavcodec-dev libavformat-dev libavutil-dev libswresample-dev \
     libavfilter-dev libavdevice-dev \
     && rm -rf /var/lib/apt/lists/*
