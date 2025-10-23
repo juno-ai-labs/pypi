@@ -9,6 +9,17 @@ This directory contains comprehensive test Dockerfiles for validating PyTorch, T
 - Sufficient storage space for Docker images (~5-10 GB per image)
 - Active cooling recommended for stress tests
 
+## Building the wheels
+
+### Build PyTorch & TorchAudio wheel
+```bash
+mkdir -p artifacts && DOCKER_BUILDKIT=1 docker build --progress plain --build-arg BASE_IMAGE=ghcr.io/juno-ai-labs/l4t-jetpack:r36.4.0 --build-arg PYTORCH_VERSION=2.8.0 --build-arg TORCHAUDIO_VERSION=2.8.0 --build-arg MAX_JOBS=8 --target artifact --output type=local,dest=artifacts -f Dockerfiles/l4t-jetpack-torch-torchaudio.Dockerfile
+```
+
+```bash
+mkdir -p artifacts && DOCKER_BUILDKIT=1 docker build --progress plain --build-arg BASE_IMAGE=ghcr.io/juno-ai-labs/l4t-jetpack:r36.4.0 --build-arg PYTORCH_VERSION=2.7.0 --build-arg TORCHAUDIO_VERSION=2.7.0 --build-arg MAX_JOBS=8 --target artifact --output type=local,dest=artifacts -f Dockerfiles/l4t-jetpack-torch-torchaudio.Dockerfile
+```
+
 ## Running the Tests
 
 All tests must be run with the `--runtime=nvidia` flag (or `--gpus all`) to enable GPU access.
