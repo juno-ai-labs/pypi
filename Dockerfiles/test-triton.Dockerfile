@@ -373,53 +373,53 @@ def fused_attention_kernel(
     stride_kz, stride_kh, stride_kn, stride_kk,
     stride_vz, stride_vh, stride_vn, stride_vk,
     stride_oz, stride_oh, stride_om, stride_ok,
-    Z, H, M, N, K,
+    Z, H, M, N, D,
     scale,
-    BLOCK_M: tl.constexpr, BLOCK_N: tl.constexpr, BLOCK_K: tl.constexpr,
+    BLOCK_M: tl.constexpr, BLOCK_N: tl.constexpr, BLOCK_D: tl.constexpr,
 ):
     """Simplified fused attention kernel"""
     start_m = tl.program_id(0)
     off_hz = tl.program_id(1)
-    
+
     offs_m = start_m * BLOCK_M + tl.arange(0, BLOCK_M)
     offs_n = tl.arange(0, BLOCK_N)
-    offs_k = tl.arange(0, BLOCK_K)
-    
-    q_ptrs = Q + off_hz * stride_qh + offs_m[:, None] * stride_qm + offs_k[None, :] * stride_qk
-    k_ptrs = K + off_hz * stride_kh + offs_n[:, None] * stride_kn + offs_k[None, :] * stride_kk
-    v_ptrs = V + off_hz * stride_vh + offs_n[:, None] * stride_vn + offs_k[None, :] * stride_vk
-    
+    offs_d = tl.arange(0, BLOCK_D)
+
+    q_ptrs = Q + off_hz * stride_qh + offs_m[:, None] * stride_qm + offs_d[None, :] * stride_qk
+    k_ptrs = K + off_hz * stride_kh + offs_n[:, None] * stride_kn + offs_d[None, :] * stride_kk
+    v_ptrs = V + off_hz * stride_vh + offs_n[:, None] * stride_vn + offs_d[None, :] * stride_vk
+
     # Load Q
-    q = tl.load(q_ptrs, mask=(offs_m[:, None] < M) & (offs_k[None, :] < K), other=0.0)
-    
+    q = tl.load(q_ptrs, mask=(offs_m[:, None] < M) & (offs_d[None, :] < D), other=0.0)
+
     # Initialize accumulator
-    acc = tl.zeros([BLOCK_M, BLOCK_K], dtype=tl.float32)
-    
-    # Iterate over K blocks
+    acc = tl.zeros([BLOCK_M, BLOCK_D], dtype=tl.float32)
+
+    # Iterate over N blocks
     for start_n in range(0, N, BLOCK_N):
         # Load K and V
-        k = tl.load(k_ptrs, mask=(offs_n[:, None] < N) & (offs_k[None, :] < K), other=0.0)
-        v = tl.load(v_ptrs, mask=(offs_n[:, None] < N) & (offs_k[None, :] < K), other=0.0)
-        
+        k = tl.load(k_ptrs, mask=(offs_n[:, None] < N) & (offs_d[None, :] < D), other=0.0)
+        v = tl.load(v_ptrs, mask=(offs_n[:, None] < N) & (offs_d[None, :] < D), other=0.0)
+
         # Compute attention scores
         qk = tl.dot(q, tl.trans(k)) * scale
-        
+
         # Apply softmax
         qk_max = tl.max(qk, axis=1)
         qk_exp = tl.exp(qk - qk_max[:, None])
         qk_sum = tl.sum(qk_exp, axis=1)
         attn = qk_exp / qk_sum[:, None]
-        
+
         # Accumulate weighted values
         acc += tl.dot(attn, v)
-        
+
         # Update pointers
         k_ptrs += BLOCK_N * stride_kn
         v_ptrs += BLOCK_N * stride_vn
-    
+
     # Store output
-    out_ptrs = Out + off_hz * stride_oh + offs_m[:, None] * stride_om + offs_k[None, :] * stride_ok
-    tl.store(out_ptrs, acc, mask=(offs_m[:, None] < M) & (offs_k[None, :] < K))
+    out_ptrs = Out + off_hz * stride_oh + offs_m[:, None] * stride_om + offs_d[None, :] * stride_ok
+    tl.store(out_ptrs, acc, mask=(offs_m[:, None] < M) & (offs_d[None, :] < D))
 
 def test_fused_attention():
     """Test 6: Fused Attention Kernel"""
@@ -452,7 +452,7 @@ def test_fused_attention():
         Out.stride(0), Out.stride(1), Out.stride(2), Out.stride(3),
         batch_size, num_heads, seq_len, seq_len, head_dim,
         scale,
-        BLOCK_M=64, BLOCK_N=64, BLOCK_K=64,
+        BLOCK_M=64, BLOCK_N=64, BLOCK_D=64,
     )
     torch.cuda.synchronize()
     elapsed = time.time() - start
