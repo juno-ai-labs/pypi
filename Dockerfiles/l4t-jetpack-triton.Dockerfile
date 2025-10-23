@@ -30,16 +30,16 @@ ARG TRITON_BRANCH
 
 # Ensure Triton builds the NVIDIA backend for Jetson and uses system CUDA tools
 # - Limit backends to NVIDIA and disable Werror in LLVM via CMake args
+# - Explicitly disable Proton to avoid building CUPTI/proton bits on Jetson
 # - Point ptxas to the system CUDA (JetPack)
 # - Provide CUDA headers to avoid online fetch of cudacrt/cudart
 # - Target Ampere SM 87 via PTXAS_OPTIONS for Jetson Orin
-# - Optionally disable Proton (profiler) to skip CUPTI on minimal setups
-ENV TRITON_APPEND_CMAKE_ARGS="-DTRITON_CODEGEN_BACKENDS=nvidia -DLLVM_ENABLE_WERROR=OFF" \
+ENV TRITON_APPEND_CMAKE_ARGS="-DTRITON_CODEGEN_BACKENDS=nvidia -DLLVM_ENABLE_WERROR=OFF -DTRITON_BUILD_PROTON=OFF" \
+    TRITON_BUILD_PROTON=OFF \
     TRITON_PTXAS_PATH=/usr/local/cuda/bin/ptxas \
     TRITON_CUDACRT_PATH=/usr/local/cuda/include \
     TRITON_CUDART_PATH=/usr/local/cuda/include \
-    PTXAS_OPTIONS="--gpu-name=sm_87" \
-    TRITON_BUILD_PROTON=OFF
+    PTXAS_OPTIONS="--gpu-name=sm_87"
 
 RUN mkdir -p /opt /wheels
 
@@ -61,10 +61,10 @@ RUN sed -i 's|^download_and_copy_ptxas|#&|' python/setup.py || :
 
 # Additional guard: prevent Triton tools from including AMD headers/registrations,
 # which are not generated when only building the NVIDIA backend.
-#RUN sed -i '/amd\/include\/Dialect\/TritonAMDGPU\/IR\/Dialect.h/d' bin/RegisterTritonDialects.h && \
-#    sed -i '/amd\/include\/TritonAMDGPUTransforms\/Passes.h/d' bin/RegisterTritonDialects.h && \
-#    sed -i '/ProtonAMDGPUToLLVM/d' bin/RegisterTritonDialects.h && \
-#    sed -i '/AMDGPU/d' bin/RegisterTritonDialects.h
+RUN sed -i '/amd\/include\/Dialect\/TritonAMDGPU\/IR\/Dialect.h/d' bin/RegisterTritonDialects.h && \
+    sed -i '/amd\/include\/TritonAMDGPUTransforms\/Passes.h/d' bin/RegisterTritonDialects.h && \
+    sed -i '/ProtonAMDGPUToLLVM/d' bin/RegisterTritonDialects.h && \
+    sed -i '/AMDGPU/d' bin/RegisterTritonDialects.h
 
 # Build triton wheel
 RUN uv build --wheel --out-dir /wheels
