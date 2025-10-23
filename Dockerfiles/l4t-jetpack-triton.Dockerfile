@@ -28,16 +28,17 @@ FROM base AS triton-build
 ARG TRITON_VERSION
 ARG TRITON_BRANCH
 
-# Ensure Triton builds only the NVIDIA backend and uses system CUDA tools on Jetson
-# - TRITON_APPEND_CMAKE_ARGS overrides setup.py defaults; last -D wins in CMake
-# - Disable Werror to avoid failing on warnings across toolchains
-# - Point ptxas to the system CUDA (JetPack) toolchain
-# - Provide CUDA headers to avoid Triton trying to fetch "cudacrt/cudart" for aarch64
-# - Optionally disable the profiler (Proton) to avoid CUPTI requirements in minimal builds
+# Ensure Triton builds the NVIDIA backend for Jetson and uses system CUDA tools
+# - Limit backends to NVIDIA and disable Werror in LLVM via CMake args
+# - Point ptxas to the system CUDA (JetPack)
+# - Provide CUDA headers to avoid online fetch of cudacrt/cudart
+# - Target Ampere SM 87 via PTXAS_OPTIONS for Jetson Orin
+# - Optionally disable Proton (profiler) to skip CUPTI on minimal setups
 ENV TRITON_APPEND_CMAKE_ARGS="-DTRITON_CODEGEN_BACKENDS=nvidia -DLLVM_ENABLE_WERROR=OFF" \
     TRITON_PTXAS_PATH=/usr/local/cuda/bin/ptxas \
     TRITON_CUDACRT_PATH=/usr/local/cuda/include \
     TRITON_CUDART_PATH=/usr/local/cuda/include \
+    PTXAS_OPTIONS="--gpu-name=sm_87" \
     TRITON_BUILD_PROTON=OFF
 
 RUN mkdir -p /opt /wheels
@@ -48,12 +49,29 @@ RUN git clone --branch "${TRITON_BRANCH}" --depth=1 --recursive \
 
 WORKDIR /opt/triton
 
+# Patch CMakeLists.txt to remove AMD GPU support and disable -Werror
+RUN sed -i \
+    -e 's|LLVMAMDGPUCodeGen||g' \
+    -e 's|LLVMAMDGPUAsmParser||g' \
+    -e 's|-Werror|-Wno-error|g' \
+    CMakeLists.txt
+
+# Patch setup.py to skip ptxas download (no-op if path differs)
+RUN sed -i 's|^download_and_copy_ptxas|#&|' python/setup.py || :
+
+# Additional guard: prevent Triton tools from including AMD headers/registrations,
+# which are not generated when only building the NVIDIA backend.
+#RUN sed -i '/amd\/include\/Dialect\/TritonAMDGPU\/IR\/Dialect.h/d' bin/RegisterTritonDialects.h && \
+#    sed -i '/amd\/include\/TritonAMDGPUTransforms\/Passes.h/d' bin/RegisterTritonDialects.h && \
+#    sed -i '/ProtonAMDGPUToLLVM/d' bin/RegisterTritonDialects.h && \
+#    sed -i '/AMDGPU/d' bin/RegisterTritonDialects.h
+
 # Build triton wheel
 RUN uv build --wheel --out-dir /wheels
 
 # Test the installation
 RUN uv pip install /wheels/triton*.whl && \
-    python3 -c 'import triton; print("Triton import OK, version:", triton.__version__)' && \
+    python3 -c 'import triton, torch; print("Triton:", triton.__version__); print("Torch CUDA capability:", torch.cuda.get_device_capability() if torch.cuda.is_available() else "N/A")' && \
     uv pip show triton
 
 # --- Artifact output ---
