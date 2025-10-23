@@ -54,9 +54,9 @@ RUN mkdir -p third_party/cuda && \
 RUN uv build --wheel --out-dir /wheels
 
 # Test the installation
-RUN uv pip install /wheels/triton*.whl && \
+RUN uv pip install --system /wheels/triton*.whl && \
     python3 -c 'import triton' && \
-    uv pip show triton
+    uv pip show --system triton
 
 # --- Artifact output ---
 FROM scratch AS artifact
