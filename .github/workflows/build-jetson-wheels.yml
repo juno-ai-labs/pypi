@@ -175,11 +175,98 @@ jobs:
           path: artifacts/wheels
           retention-days: 7
 
+  build-triton:
+    name: Build triton ${{ matrix.triton_version }}
+    runs-on: linux-arm-ubuntu-22-large
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - triton_version: "3.4.0"
+            triton_branch: "release/3.4.x"
+          - triton_version: "3.5.0"
+            triton_branch: "release/3.5.x"
+    env:
+      BASE_IMAGE: ghcr.io/juno-ai-labs/l4t-jetpack:r36.4.0
+      DOCKERFILE: Dockerfiles/l4t-jetpack-triton.Dockerfile
+      PACKAGE_DIR: packages/nvcr-io-nvidia-l4t-jetpack-r36-4-0
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check for existing wheels
+        id: check
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          triton_pattern="${PACKAGE_DIR}/triton-${{ matrix.triton_version }}*.whl"
+          triton_matches=($(compgen -G "${triton_pattern}" || true))
+          if (( ${#triton_matches[@]} > 0 )); then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+        if: steps.check.outputs.skip != 'true'
+
+      - name: Log in to GHCR
+        if: steps.check.outputs.skip != 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.PACKAGES_SECRET_TOKEN }}
+
+      - name: Prime build cache
+        if: steps.check.outputs.skip != 'true'
+        env:
+          CACHE_IMAGE: ghcr.io/juno-ai-labs/cache-l4t-triton-${{ matrix.triton_version }}
+        run: |
+          set -euo pipefail
+          docker pull "${CACHE_IMAGE}" || echo "No existing cache image ${CACHE_IMAGE}"
+
+      - name: Build triton wheel
+        if: steps.check.outputs.skip != 'true'
+        env:
+          TRITON_VERSION: ${{ matrix.triton_version }}
+          TRITON_BRANCH: ${{ matrix.triton_branch }}
+          CACHE_IMAGE: ghcr.io/juno-ai-labs/cache-l4t-triton-${{ matrix.triton_version }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          docker buildx build \
+            --progress plain \
+            --platform linux/arm64 \
+            --memory=56g --memory-swap=96g \
+            --build-arg BASE_IMAGE="${BASE_IMAGE}" \
+            --build-arg TRITON_VERSION="${TRITON_VERSION}" \
+            --build-arg TRITON_BRANCH="${TRITON_BRANCH}" \
+            --target artifact \
+            --cache-from "type=registry,ref=${CACHE_IMAGE}" \
+            --cache-to "type=registry,ref=${CACHE_IMAGE},mode=max" \
+            --output type=local,dest=artifacts \
+            -f "${DOCKERFILE}" .
+
+      - name: Upload wheel artifacts
+        if: steps.check.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-triton-${{ matrix.triton_version }}
+          path: artifacts/wheels
+          retention-days: 7
+
   commit-packages:
     name: Commit wheels
     needs: 
       # - build-wheels, 
       - build-cuda-python
+      - build-triton
     runs-on: ubuntu-22.04
     permissions:
       contents: write
@@ -240,12 +327,16 @@ jobs:
           git add "${PACKAGE_DIR}"
           torch_versions=$(git diff --cached --name-only -- "${PACKAGE_DIR}" | sed -n 's|.*/torch-\([0-9.]*\).*|\1|p' | sort -u | paste -sd, -)
           cuda_python_versions=$(git diff --cached --name-only -- "${PACKAGE_DIR}" | sed -n 's|.*/cuda_python-\([0-9.]*\).*|\1|p' | sort -u | paste -sd, -)
-          if [[ -n "$torch_versions" ]] && [[ -n "$cuda_python_versions" ]]; then
-            commit_message="Add Jetson torch ${torch_versions} and cuda-python ${cuda_python_versions} wheels"
-          elif [[ -n "$torch_versions" ]]; then
-            commit_message="Add Jetson torch ${torch_versions} wheels"
-          elif [[ -n "$cuda_python_versions" ]]; then
-            commit_message="Add Jetson cuda-python ${cuda_python_versions} wheels"
+          triton_versions=$(git diff --cached --name-only -- "${PACKAGE_DIR}" | sed -n 's|.*/triton-\([0-9.]*\).*|\1|p' | sort -u | paste -sd, -)
+          
+          # Build commit message with all component versions
+          components=()
+          [[ -n "$torch_versions" ]] && components+=("torch ${torch_versions}")
+          [[ -n "$cuda_python_versions" ]] && components+=("cuda-python ${cuda_python_versions}")
+          [[ -n "$triton_versions" ]] && components+=("triton ${triton_versions}")
+          
+          if (( ${#components[@]} > 0 )); then
+            commit_message="Add Jetson $(IFS=' and '; echo "${components[*]}") wheels"
           else
             commit_message="Add Jetson wheels"
           fi
