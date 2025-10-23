@@ -177,7 +177,9 @@ jobs:
 
   commit-packages:
     name: Commit wheels
-    needs: [build-wheels, build-cuda-python]
+    needs: 
+      # - build-wheels, 
+      - build-cuda-python
     runs-on: ubuntu-22.04
     permissions:
       contents: write
