@@ -15,7 +15,7 @@ All tests must be run with the `--runtime=nvidia` flag (or `--gpus all`) to enab
 
 ### Run PyTorch Test
 ```bash
-VERSION=2.8.0 && docker build --build-arg --build-arg VERSION=$VERSION -f Dockerfiles/test-torch.Dockerfile -t jetson-test-torch:$VERSION . && docker run --runtime=nvidia --rm jetson-test-torch:$VERSION
+VERSION=2.8.0 && docker build --build-arg VERSION=$VERSION -f Dockerfiles/test-torch.Dockerfile -t jetson-test-torch:$VERSION . && docker run --runtime=nvidia --rm jetson-test-torch:$VERSION
 ```
 
 ### Run TorchAudio Test
