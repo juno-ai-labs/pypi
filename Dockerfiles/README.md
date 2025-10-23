@@ -18,9 +18,17 @@ All tests must be run with the `--runtime=nvidia` flag (or `--gpus all`) to enab
 VERSION=2.8.0 && docker build --build-arg VERSION=$VERSION -f Dockerfiles/test-torch.Dockerfile -t jetson-test-torch:$VERSION . && docker run --runtime=nvidia --rm jetson-test-torch:$VERSION
 ```
 
+```bash
+VERSION=2.7.0 && docker build --build-arg VERSION=$VERSION -f Dockerfiles/test-torch.Dockerfile -t jetson-test-torch:$VERSION . && docker run --runtime=nvidia --rm jetson-test-torch:$VERSION
+```
+
 ### Run TorchAudio Test
 ```bash
-TORCH_VERSION=2.8.0 VERSION=2.8.0a0+6e1c7fe && docker build --build-arg TORCH_VERSION=$TORCH_VERSION --build-arg VERSION=$VERSION -f Dockerfiles/test-torchaudio.Dockerfile -t jetson-test-torchaudio:$VERSION . && docker run --runtime=nvidia --rm jetson-test-torchaudio:$VERSION
+TORCH_VERSION=2.8.0 VERSION=2.8.0a0+6e1c7fe && docker build --build-arg TORCH_VERSION=$TORCH_VERSION --build-arg VERSION=$VERSION -f Dockerfiles/test-torchaudio.Dockerfile -t jetson-test-torchaudio:2.8.0 . && docker run --runtime=nvidia --rm jetson-test-torchaudio:2.8.0
+```
+
+```bash
+TORCH_VERSION=2.7.0 VERSION=2.7.0a0+654fee8 && docker build --build-arg TORCH_VERSION=$TORCH_VERSION --build-arg VERSION=$VERSION -f Dockerfiles/test-torchaudio.Dockerfile -t jetson-test-torchaudio:2.7.0 . && docker run --runtime=nvidia --rm jetson-test-torchaudio:2.7.0
 ```
 
 ### Run CUDA Python Test
