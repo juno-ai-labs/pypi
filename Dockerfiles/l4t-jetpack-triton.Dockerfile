@@ -49,16 +49,16 @@ RUN git clone --branch "${TRITON_BRANCH}" --depth=1 --recursive \
 
 WORKDIR /opt/triton
 
-sed -i \
+RUN sed -i \
     -e 's|LLVMAMDGPUCodeGen||g' \
     -e 's|LLVMAMDGPUAsmParser||g' \
     -e 's|-Werror|-Wno-error|g' \
     CMakeLists.txt
 
-sed -i 's|^download_and_copy_ptxas|#&|' python/setup.py || :
+RUN sed -i 's|^download_and_copy_ptxas|#&|' python/setup.py || :
 
-mkdir -p third_party/cuda
-ln -sf /usr/local/cuda/bin/ptxas $(pwd)/third_party/cuda/ptxas
+RUN mkdir -p third_party/cuda
+RUN ln -sf /usr/local/cuda/bin/ptxas $(pwd)/third_party/cuda/ptxas
 
 # Build triton wheel
 RUN uv build --wheel --out-dir /wheels
