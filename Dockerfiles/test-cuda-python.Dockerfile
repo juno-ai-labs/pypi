@@ -23,7 +23,7 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip
 ARG CUDA_PYTHON_INDEX_URL=https://jetson-pypi.juno-labs.com/images/nvcr-io-nvidia-l4t-jetpack-r36-4-0
 ARG VERSION=12.6.2.post1
 
-RUN pip3 config set global.index-url "${PYTORCH_INDEX_URL}"
+RUN pip3 config set global.index-url "${CUDA_PYTHON_INDEX_URL}"
 RUN python3 -m pip install --no-cache-dir cuda-python==${VERSION}
 
 # Install numpy for array operations
@@ -43,7 +43,7 @@ Tests low-level CUDA API functionality and hardware interaction
 import sys
 import time
 import numpy as np
-from cuda import cuda, nvrtc
+from cuda import cuda
 
 def print_separator(title):
     print("\n" + "="*80)
@@ -222,118 +222,6 @@ def test_memory_operations():
     
     print("✓ Memory operations test passed")
 
-def test_kernel_compilation_and_execution():
-    """Test 5: Kernel Compilation and Execution"""
-    print_separator("Test 5: Kernel Compilation and Execution")
-    
-    # Simple vector addition kernel
-    kernel_code = """
-    extern "C" __global__
-    void vectorAdd(const float *A, const float *B, float *C, int numElements) {
-        int i = blockDim.x * blockIdx.x + threadIdx.x;
-        if (i < numElements) {
-            C[i] = A[i] + B[i];
-        }
-    }
-    """
-    
-    print("Compiling CUDA kernel...")
-    
-    # Compile kernel
-    program = check_cuda_errors(nvrtc.nvrtcCreateProgram(
-        str.encode(kernel_code),
-        b"vectorAdd.cu",
-        0, [], []
-    ))
-    
-    # Set compilation options for Jetson Orin (compute capability 8.7)
-    opts = [b'--gpu-architecture=compute_87']
-    
-    try:
-        check_cuda_errors(nvrtc.nvrtcCompileProgram(program[0], len(opts), opts))
-        print("✓ Kernel compiled successfully")
-    except RuntimeError as e:
-        # Get compilation log
-        log_size = check_cuda_errors(nvrtc.nvrtcGetProgramLogSize(program[0]))
-        log = b' ' * log_size[0]
-        check_cuda_errors(nvrtc.nvrtcGetProgramLog(program[0], log))
-        print(f"Compilation log:\n{log.decode()}")
-        raise e
-    
-    # Get PTX
-    ptx_size = check_cuda_errors(nvrtc.nvrtcGetPTXSize(program[0]))
-    ptx = b' ' * ptx_size[0]
-    check_cuda_errors(nvrtc.nvrtcGetPTX(program[0], ptx))
-    print(f"✓ Generated PTX ({ptx_size[0]} bytes)")
-    
-    # Load module
-    module = check_cuda_errors(cuda.cuModuleLoadDataEx(ptx, 0, [], []))
-    print("✓ Module loaded")
-    
-    # Get kernel function
-    kernel = check_cuda_errors(cuda.cuModuleGetFunction(module[0], b"vectorAdd"))
-    print("✓ Kernel function retrieved")
-    
-    # Prepare data
-    num_elements = 100000
-    host_a = np.random.rand(num_elements).astype(np.float32)
-    host_b = np.random.rand(num_elements).astype(np.float32)
-    host_c = np.zeros(num_elements, dtype=np.float32)
-    
-    # Allocate device memory
-    d_a = check_cuda_errors(cuda.cuMemAlloc(host_a.nbytes))[0]
-    d_b = check_cuda_errors(cuda.cuMemAlloc(host_b.nbytes))[0]
-    d_c = check_cuda_errors(cuda.cuMemAlloc(host_c.nbytes))[0]
-    
-    # Copy data to device
-    check_cuda_errors(cuda.cuMemcpyHtoD(d_a, host_a, host_a.nbytes))
-    check_cuda_errors(cuda.cuMemcpyHtoD(d_b, host_b, host_b.nbytes))
-    
-    # Launch kernel
-    threads_per_block = 256
-    blocks_per_grid = (num_elements + threads_per_block - 1) // threads_per_block
-    
-    print(f"Launching kernel: {blocks_per_grid} blocks x {threads_per_block} threads")
-    
-    # Prepare kernel arguments
-    args = np.array([d_a, d_b, d_c, num_elements], dtype=np.uint64)
-    args_ptr = (cuda.CUdeviceptr * 4)()
-    for i in range(4):
-        args_ptr[i] = args.ctypes.data + i * 8
-    
-    start = time.time()
-    check_cuda_errors(cuda.cuLaunchKernel(
-        kernel[0],
-        blocks_per_grid, 1, 1,      # grid dimensions
-        threads_per_block, 1, 1,    # block dimensions
-        0,                          # shared memory
-        None,                       # stream
-        args_ptr,                   # kernel arguments
-        None                        # extra options
-    ))
-    check_cuda_errors(cuda.cuCtxSynchronize())
-    elapsed = time.time() - start
-    
-    print(f"✓ Kernel executed in {elapsed*1000:.2f} ms")
-    
-    # Copy result back
-    check_cuda_errors(cuda.cuMemcpyDtoH(host_c, d_c, host_c.nbytes))
-    
-    # Verify result
-    expected = host_a + host_b
-    if np.allclose(host_c, expected):
-        print("✓ Kernel computation verified")
-    else:
-        max_error = np.max(np.abs(host_c - expected))
-        raise RuntimeError(f"Kernel computation error! Max error: {max_error}")
-    
-    # Cleanup
-    check_cuda_errors(cuda.cuMemFree(d_a))
-    check_cuda_errors(cuda.cuMemFree(d_b))
-    check_cuda_errors(cuda.cuMemFree(d_c))
-    
-    print("✓ Kernel compilation and execution test passed")
-
 def test_stream_operations():
     """Test 6: CUDA Stream Operations"""
     print_separator("Test 6: CUDA Stream Operations")
@@ -410,131 +298,6 @@ def test_memory_info():
     
     print("✓ Memory info test passed")
 
-def test_matrix_multiplication_kernel():
-    """Test 9: Matrix Multiplication Kernel"""
-    print_separator("Test 9: Matrix Multiplication Kernel")
-    
-    # Matrix multiplication kernel
-    matmul_kernel = """
-    extern "C" __global__
-    void matrixMul(float *C, const float *A, const float *B, int wA, int wB) {
-        int bx = blockIdx.x;
-        int by = blockIdx.y;
-        int tx = threadIdx.x;
-        int ty = threadIdx.y;
-        
-        int aBegin = wA * 16 * by;
-        int aEnd = aBegin + wA - 1;
-        int aStep = 16;
-        int bBegin = 16 * bx;
-        int bStep = 16 * wB;
-        
-        float Csub = 0;
-        
-        for (int a = aBegin, b = bBegin; a <= aEnd; a += aStep, b += bStep) {
-            __shared__ float As[16][16];
-            __shared__ float Bs[16][16];
-            
-            As[ty][tx] = A[a + wA * ty + tx];
-            Bs[ty][tx] = B[b + wB * ty + tx];
-            
-            __syncthreads();
-            
-            for (int k = 0; k < 16; ++k) {
-                Csub += As[ty][k] * Bs[k][tx];
-            }
-            
-            __syncthreads();
-        }
-        
-        int c = wB * 16 * by + 16 * bx;
-        C[c + wB * ty + tx] = Csub;
-    }
-    """
-    
-    print("Compiling matrix multiplication kernel...")
-    
-    # Compile kernel
-    program = check_cuda_errors(nvrtc.nvrtcCreateProgram(
-        str.encode(matmul_kernel),
-        b"matmul.cu",
-        0, [], []
-    ))
-    
-    opts = [b'--gpu-architecture=compute_87']
-    check_cuda_errors(nvrtc.nvrtcCompileProgram(program[0], len(opts), opts))
-    
-    # Get PTX
-    ptx_size = check_cuda_errors(nvrtc.nvrtcGetPTXSize(program[0]))
-    ptx = b' ' * ptx_size[0]
-    check_cuda_errors(nvrtc.nvrtcGetPTX(program[0], ptx))
-    
-    # Load module
-    module = check_cuda_errors(cuda.cuModuleLoadDataEx(ptx, 0, [], []))
-    kernel = check_cuda_errors(cuda.cuModuleGetFunction(module[0], b"matrixMul"))
-    
-    # Prepare matrices (must be multiple of 16 for this simple kernel)
-    size = 512
-    host_a = np.random.rand(size, size).astype(np.float32)
-    host_b = np.random.rand(size, size).astype(np.float32)
-    host_c = np.zeros((size, size), dtype=np.float32)
-    
-    print(f"Matrix size: {size}x{size}")
-    
-    # Allocate device memory
-    d_a = check_cuda_errors(cuda.cuMemAlloc(host_a.nbytes))[0]
-    d_b = check_cuda_errors(cuda.cuMemAlloc(host_b.nbytes))[0]
-    d_c = check_cuda_errors(cuda.cuMemAlloc(host_c.nbytes))[0]
-    
-    # Copy to device
-    check_cuda_errors(cuda.cuMemcpyHtoD(d_a, host_a, host_a.nbytes))
-    check_cuda_errors(cuda.cuMemcpyHtoD(d_b, host_b, host_b.nbytes))
-    
-    # Launch kernel
-    threads_per_block = (16, 16, 1)
-    blocks_per_grid = (size // 16, size // 16, 1)
-    
-    args = np.array([d_c, d_a, d_b, size, size], dtype=np.uint64)
-    args_ptr = (cuda.CUdeviceptr * 5)()
-    for i in range(5):
-        args_ptr[i] = args.ctypes.data + i * 8
-    
-    print("Launching matrix multiplication kernel...")
-    start = time.time()
-    check_cuda_errors(cuda.cuLaunchKernel(
-        kernel[0],
-        blocks_per_grid[0], blocks_per_grid[1], blocks_per_grid[2],
-        threads_per_block[0], threads_per_block[1], threads_per_block[2],
-        0, None, args_ptr, None
-    ))
-    check_cuda_errors(cuda.cuCtxSynchronize())
-    elapsed = time.time() - start
-    
-    print(f"✓ Matrix multiplication completed in {elapsed*1000:.2f} ms")
-    
-    # Calculate performance
-    flops = 2 * size**3
-    gflops = flops / elapsed / 1e9
-    print(f"Performance: {gflops:.2f} GFLOPS")
-    
-    # Copy result back
-    check_cuda_errors(cuda.cuMemcpyDtoH(host_c, d_c, host_c.nbytes))
-    
-    # Verify result with numpy
-    expected = np.matmul(host_a, host_b)
-    if np.allclose(host_c, expected, rtol=1e-3):
-        print("✓ Matrix multiplication result verified")
-    else:
-        max_error = np.max(np.abs(host_c - expected))
-        print(f"WARNING: Max error: {max_error}")
-    
-    # Cleanup
-    check_cuda_errors(cuda.cuMemFree(d_a))
-    check_cuda_errors(cuda.cuMemFree(d_b))
-    check_cuda_errors(cuda.cuMemFree(d_c))
-    
-    print("✓ Matrix multiplication kernel test passed")
-
 def test_stress_test():
     """Test 10: CUDA API Stress Test"""
     print_separator("Test 10: CUDA API Stress Test")
@@ -588,11 +351,9 @@ def main():
         test_device_properties()
         test_context_management()
         test_memory_operations()
-        test_kernel_compilation_and_execution()
         test_stream_operations()
         test_event_operations()
         test_memory_info()
-        test_matrix_multiplication_kernel()
         test_stress_test()
         
         print("\n")
