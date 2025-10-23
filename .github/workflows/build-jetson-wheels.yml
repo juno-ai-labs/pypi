@@ -4,94 +4,94 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  build-wheels:
-    name: Build wheels for torch ${{ matrix.torch_version }}
-    runs-on: linux-arm-ubuntu-22-large
-    permissions:
-      contents: read
-      packages: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - torch_version: "2.7.0"
-            torchaudio_version: "2.7.0"
-          - torch_version: "2.8.0"
-            torchaudio_version: "2.8.0"
-    env:
-      BASE_IMAGE: ghcr.io/juno-ai-labs/l4t-jetpack:r36.4.0
-      DOCKERFILE: Dockerfiles/l4t-jetpack-torch-torchaudio.Dockerfile
-      PACKAGE_DIR: packages/nvcr-io-nvidia-l4t-jetpack-r36-4-0
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+  # build-wheels:
+  #   name: Build wheels for torch ${{ matrix.torch_version }}
+  #   runs-on: linux-arm-ubuntu-22-large
+  #   permissions:
+  #     contents: read
+  #     packages: write
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       include:
+  #         - torch_version: "2.7.0"
+  #           torchaudio_version: "2.7.0"
+  #         - torch_version: "2.8.0"
+  #           torchaudio_version: "2.8.0"
+  #   env:
+  #     BASE_IMAGE: ghcr.io/juno-ai-labs/l4t-jetpack:r36.4.0
+  #     DOCKERFILE: Dockerfiles/l4t-jetpack-torch-torchaudio.Dockerfile
+  #     PACKAGE_DIR: packages/nvcr-io-nvidia-l4t-jetpack-r36-4-0
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v4
 
-      - name: Check for existing wheels
-        id: check
-        shell: bash
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          torch_pattern="${PACKAGE_DIR}/torch-${{ matrix.torch_version }}*.whl"
-          audio_pattern="${PACKAGE_DIR}/torchaudio-${{ matrix.torchaudio_version }}*.whl"
-          torch_matches=($(compgen -G "${torch_pattern}" || true))
-          audio_matches=($(compgen -G "${audio_pattern}" || true))
-          if (( ${#torch_matches[@]} > 0 )) && (( ${#audio_matches[@]} > 0 )); then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
+  #     - name: Check for existing wheels
+  #       id: check
+  #       shell: bash
+  #       run: |
+  #         set -euo pipefail
+  #         shopt -s nullglob
+  #         torch_pattern="${PACKAGE_DIR}/torch-${{ matrix.torch_version }}*.whl"
+  #         audio_pattern="${PACKAGE_DIR}/torchaudio-${{ matrix.torchaudio_version }}*.whl"
+  #         torch_matches=($(compgen -G "${torch_pattern}" || true))
+  #         audio_matches=($(compgen -G "${audio_pattern}" || true))
+  #         if (( ${#torch_matches[@]} > 0 )) && (( ${#audio_matches[@]} > 0 )); then
+  #           echo "skip=true" >> "$GITHUB_OUTPUT"
+  #         else
+  #           echo "skip=false" >> "$GITHUB_OUTPUT"
+  #         fi
 
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
-        if: steps.check.outputs.skip != 'true'
+  #     - name: Set up Buildx
+  #       uses: docker/setup-buildx-action@v3
+  #       if: steps.check.outputs.skip != 'true'
 
-      - name: Log in to GHCR
-        if: steps.check.outputs.skip != 'true'
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.PACKAGES_SECRET_TOKEN }}
+  #     - name: Log in to GHCR
+  #       if: steps.check.outputs.skip != 'true'
+  #       uses: docker/login-action@v3
+  #       with:
+  #         registry: ghcr.io
+  #         username: ${{ github.actor }}
+  #         password: ${{ secrets.PACKAGES_SECRET_TOKEN }}
 
-      - name: Prime build cache
-        if: steps.check.outputs.skip != 'true'
-        env:
-          CACHE_IMAGE: ghcr.io/juno-ai-labs/cache-l4t-torch-${{ matrix.torch_version }}
-        run: |
-          set -euo pipefail
-          docker pull "${CACHE_IMAGE}" || echo "No existing cache image ${CACHE_IMAGE}"
+  #     - name: Prime build cache
+  #       if: steps.check.outputs.skip != 'true'
+  #       env:
+  #         CACHE_IMAGE: ghcr.io/juno-ai-labs/cache-l4t-torch-${{ matrix.torch_version }}
+  #       run: |
+  #         set -euo pipefail
+  #         docker pull "${CACHE_IMAGE}" || echo "No existing cache image ${CACHE_IMAGE}"
 
-      - name: Build PyTorch and TorchAudio wheels
-        if: steps.check.outputs.skip != 'true'
-        env:
-          TORCH_VERSION: ${{ matrix.torch_version }}
-          TORCHAUDIO_VERSION: ${{ matrix.torchaudio_version }}
-          CACHE_IMAGE: ghcr.io/juno-ai-labs/cache-l4t-torch-${{ matrix.torch_version }}
-        run: |
-          set -euo pipefail
-          mkdir -p artifacts
-          docker buildx build \
-            --progress plain \
-            --platform linux/arm64 \
-            --memory=56g --memory-swap=96g \
-            --build-arg BASE_IMAGE="${BASE_IMAGE}" \
-            --build-arg PYTORCH_VERSION="${TORCH_VERSION}" \
-            --build-arg TORCHAUDIO_VERSION="${TORCHAUDIO_VERSION}" \
-            --build-arg MAX_JOBS=1 \
-            --target artifact \
-            --cache-from "type=registry,ref=${CACHE_IMAGE}" \
-            --cache-to "type=registry,ref=${CACHE_IMAGE},mode=max" \
-            --output type=local,dest=artifacts \
-            -f "${DOCKERFILE}" .
+  #     - name: Build PyTorch and TorchAudio wheels
+  #       if: steps.check.outputs.skip != 'true'
+  #       env:
+  #         TORCH_VERSION: ${{ matrix.torch_version }}
+  #         TORCHAUDIO_VERSION: ${{ matrix.torchaudio_version }}
+  #         CACHE_IMAGE: ghcr.io/juno-ai-labs/cache-l4t-torch-${{ matrix.torch_version }}
+  #       run: |
+  #         set -euo pipefail
+  #         mkdir -p artifacts
+  #         docker buildx build \
+  #           --progress plain \
+  #           --platform linux/arm64 \
+  #           --memory=56g --memory-swap=96g \
+  #           --build-arg BASE_IMAGE="${BASE_IMAGE}" \
+  #           --build-arg PYTORCH_VERSION="${TORCH_VERSION}" \
+  #           --build-arg TORCHAUDIO_VERSION="${TORCHAUDIO_VERSION}" \
+  #           --build-arg MAX_JOBS=1 \
+  #           --target artifact \
+  #           --cache-from "type=registry,ref=${CACHE_IMAGE}" \
+  #           --cache-to "type=registry,ref=${CACHE_IMAGE},mode=max" \
+  #           --output type=local,dest=artifacts \
+  #           -f "${DOCKERFILE}" .
 
-      - name: Upload wheel artifacts
-        if: steps.check.outputs.skip != 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheels-${{ matrix.torch_version }}
-          path: artifacts/wheels
-          retention-days: 7
+  #     - name: Upload wheel artifacts
+  #       if: steps.check.outputs.skip != 'true'
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: wheels-${{ matrix.torch_version }}
+  #         path: artifacts/wheels
+  #         retention-days: 7
 
   build-cuda-python:
     name: Build cuda-python ${{ matrix.cuda_python_version }}
