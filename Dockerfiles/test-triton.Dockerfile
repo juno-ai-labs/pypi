@@ -21,16 +21,18 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip
 
 # Install PyTorch first (required dependency for Triton)
 ARG PYTORCH_INDEX_URL=https://jetson-pypi.juno-labs.com/images/nvcr-io-nvidia-l4t-jetpack-r36-4-0
+ARG TORCH_VERSION=2.8.0
+ARG VERSION=3.4.0
 RUN python3 -m pip install --no-cache-dir \
     --index-url ${PYTORCH_INDEX_URL} \
     --extra-index-url https://pypi.org/simple \
-    torch
+    torch==${TORCH_VERSION}
 
 # Install Triton
 RUN python3 -m pip install --no-cache-dir \
     --index-url ${PYTORCH_INDEX_URL} \
     --extra-index-url https://pypi.org/simple \
-    triton
+    triton==${VERSION}
 
 # Install numpy for array operations
 RUN python3 -m pip install --no-cache-dir numpy
