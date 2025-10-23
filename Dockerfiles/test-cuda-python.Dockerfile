@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN python3 -m pip install --no-cache-dir --upgrade pip
 
 # Install cuda-python from the private PyPI index
-ARG CUDA_PYTHON_INDEX_URL=https://pypi.juno-labs.com/nvcr-io-nvidia-l4t-jetpack-r36-4-0/
+ARG CUDA_PYTHON_INDEX_URL=https://jetson-pypi.juno-labs.com/images/nvcr-io-nvidia-l4t-jetpack-r36-4-0
 RUN python3 -m pip install --no-cache-dir \
     --index-url ${CUDA_PYTHON_INDEX_URL} \
     --extra-index-url https://pypi.org/simple \

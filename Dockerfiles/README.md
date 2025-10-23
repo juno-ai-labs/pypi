@@ -327,7 +327,7 @@ docker run --runtime=nvidia --rm -v $(pwd):/tests jetson-test-torch:latest \
 
 The test Dockerfiles pull packages from the private PyPI index:
 - Base Image: `ghcr.io/juno-ai-labs/l4t-jetpack:r36.4.0`
-- PyPI Index: `https://pypi.juno-labs.com/nvcr-io-nvidia-l4t-jetpack-r36-4-0/`
+- PyPI Index: `https://jetson-pypi.juno-labs.com/images/nvcr-io-nvidia-l4t-jetpack-r36-4-0`
 
 Packages are built specifically for Jetson Orin with:
 - Compute Capability: 8.7 (Ampere architecture)
